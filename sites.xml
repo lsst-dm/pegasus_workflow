@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sitecatalog xmlns="http://pegasus.isi.edu/schema/sitecatalog" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://pegasus.isi.edu/schema/sitecatalog http://pegasus.isi.edu/schema/sc-4.1.xsd" version="4.1">
+
+    <!-- The local site contains information about the submit host -->
+    <site handle="local" arch="x86_64" os="LINUX">
+        <!-- This is where intermediate data will be stored -->
+        <directory type="shared-scratch" path="/home/centos/scratch/">
+            <file-server operation="all" url="file:///home/centos/scratch/"/>
+        </directory>
+        <!-- This is where output data will be stored -->
+        <directory type="shared-storage" path="/home/centos/storage/">
+            <file-server operation="all" url="file:///home/centos/storage"/>
+        </directory>
+
+        <!-- Copy all env var to use the LSST Stack -->
+        <profile namespace="condor" key="getEnv">True</profile>
+    </site>
+</sitecatalog>
