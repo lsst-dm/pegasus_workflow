@@ -2,7 +2,16 @@
 tr processCcd {
     profile condor "request_memory" "4000"
     site local {
-        pfn "/home/centos/lsstsw/stack/Linux64/pipe_tasks/12.1-6-g0c5b709+6/bin/processCcd.py"
+        pfn "${PIPE_TASKS_DIR}/bin/processCcd.py"
+        arch "x86_64"
+        os "linux"
+        type "INSTALLED"
+    }
+}
+
+tr makeSkyMap {
+    site local {
+        pfn "${PIPE_TASKS_DIR}/bin/makeSkyMap.py"
         arch "x86_64"
         os "linux"
         type "INSTALLED"
@@ -11,7 +20,79 @@ tr processCcd {
 
 tr makeDiscreteSkyMap {
     site local {
-        pfn "/home/centos/lsstsw/stack/Linux64/pipe_tasks/12.1-6-g0c5b709+6/bin/makeDiscreteSkyMap.py"
+        pfn "${PIPE_TASKS_DIR}/bin/makeDiscreteSkyMap.py"
+        arch "x86_64"
+        os "linux"
+        type "INSTALLED"
+    }
+}
+
+tr makeCoaddTempExp {
+    site local {
+        pfn "${PIPE_TASKS_DIR}/bin/makeCoaddTempExp.py"
+        arch "x86_64"
+        os "linux"
+        type "INSTALLED"
+    }
+}
+
+tr assembleCoadd {
+    site local {
+        pfn "${PIPE_TASKS_DIR}/bin/assembleCoadd.py"
+        arch "x86_64"
+        os "linux"
+        type "INSTALLED"
+    }
+}
+
+tr detectCoaddSources {
+    site local {
+        pfn "${PIPE_TASKS_DIR}/bin/detectCoaddSources.py"
+        arch "x86_64"
+        os "linux"
+        type "INSTALLED"
+    }
+}
+
+tr mergeCoaddDetections {
+    site local {
+        pfn "${PIPE_TASKS_DIR}/bin/mergeCoaddDetections.py"
+        arch "x86_64"
+        os "linux"
+        type "INSTALLED"
+    }
+}
+
+tr measureCoaddSources {
+    site local {
+        pfn "${PIPE_TASKS_DIR}/bin/measureCoaddSources.py"
+        arch "x86_64"
+        os "linux"
+        type "INSTALLED"
+    }
+}
+
+tr mergeCoaddMeasurements {
+    site local {
+        pfn "${PIPE_TASKS_DIR}/bin/mergeCoaddMeasurements.py"
+        arch "x86_64"
+        os "linux"
+        type "INSTALLED"
+    }
+}
+
+tr forcedPhotCoadd {
+    site local {
+        pfn "${MEAS_BASE_DIR}/bin/forcedPhotCoadd.py"
+        arch "x86_64"
+        os "linux"
+        type "INSTALLED"
+    }
+}
+
+tr forcedPhotCcd {
+    site local {
+        pfn "${MEAS_BASE_DIR}/bin/forcedPhotCcd.py"
         arch "x86_64"
         os "linux"
         type "INSTALLED"

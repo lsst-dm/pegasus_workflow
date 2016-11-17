@@ -1,6 +1,8 @@
 # Information of the raw data in ci_hsc
 # Excerpted from ci_hsc/SConstruct
+from collections import defaultdict
 from lsst.pipe.base import Struct
+
 
 class Data(Struct):
     """Data we can process"""
@@ -61,3 +63,12 @@ allData = {"HSC-R": [Data(903334, 16),
                      Data(903988, 24),
                      ],
            }
+
+patchDataId = dict(tract=0, patch="5,4")
+patchId = " ".join(("%s=%s" % (k, v) for k, v in patchDataId.iteritems()))
+
+# Create "exposures" as in ci_hsc/SConstruct processCoadds
+allExposures = {filterName: defaultdict(list) for filterName in allData}
+for filterName in allData:
+    for data in allData[filterName]:
+        allExposures[filterName][data.visit].append(data)
