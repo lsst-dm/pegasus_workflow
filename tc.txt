@@ -1,5 +1,6 @@
 
 tr processCcd {
+    profile condor "request_memory" "4000"
     site local {
         pfn "/home/centos/lsstsw/stack/Linux64/pipe_tasks/12.1-6-g0c5b709+6/bin/processCcd.py"
         arch "x86_64"
