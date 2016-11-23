@@ -16,6 +16,7 @@ DAXFILE=$1
 # --output-dir tells Pegasus where to place workflow output files.
     #-Dpegasus.register=false \
 pegasus-plan \
+    -Dpegasus.transfer.links=true \
     -Dpegasus.catalog.site.file=sites.xml \
     -Dpegasus.catalog.transformation.file=tc.txt \
     --sites local \
