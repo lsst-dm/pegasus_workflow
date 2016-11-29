@@ -18,9 +18,12 @@ class Data(Struct):
         """Returns the dataId for this data"""
         return dict(visit=self.visit, ccd=self.ccd)
 
-    def id(self, prefix="--id"):
+    def id(self, prefix="--id", tract=None):
         """Returns a suitable --id command-line string"""
-        return "%s visit=%d ccd=%d" % (prefix, self.visit, self.ccd)
+        r = "%s visit=%d ccd=%d" % (prefix, self.visit, self.ccd)
+        if tract is not None:
+            r += " tract=%d" % tract
+        return r
 
 allData = {"HSC-R": [Data(903334, 16),
                      Data(903334, 22),
