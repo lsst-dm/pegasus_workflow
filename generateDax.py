@@ -70,7 +70,12 @@ def getDataFile(mapper, datasetType, dataId, create=False, replaceRootPath=None)
 
 def generateDax(name="dax"):
     """Generate a Pegasus DAX abstract workflow"""
-    dax = peg.ADAG(name)
+    try:
+        from AutoADAG import AutoADAG
+    except ImportError:
+        dax = peg.ADAG(name)
+    else:
+        dax = AutoADAG(name)
 
     # Construct these mappers only for creating dax, not for actual runs.
     inputArgs = dafPersist.RepositoryArgs(

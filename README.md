@@ -3,6 +3,7 @@ Setup
 
 - Setup the LSST Stack lsst_apps and ci_hsc
 - Modify sites.xml and tc.txt as necessary
+- Obtain a copy of AutoADAG.py from e.g. [here](https://github.com/pegasus-isi/pegasus-gtfar/blob/bd092b7adbd3e2fb70679cbb58681ec26b74602a/pegasus/gtfar/dax/AutoADAG.py)
 
 
 Steps
