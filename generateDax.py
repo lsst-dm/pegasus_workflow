@@ -68,6 +68,102 @@ def getDataFile(mapper, datasetType, dataId, create=False, replaceRootPath=None)
     return fileEntry
 
 
+def preruns(dax):
+    """Add pre-runs of some science pipeline tasks to the dax
+
+    The schemas outputed by these pre-runs are used in the main workflow
+    Skip tasks that do not generate schemas.
+    p.s. ci_hsc does not pre-run tasks that have only one instance.
+
+    Parameters
+    ----------
+    dax: Pegasus.DAX3.ADAG
+        Add pre-run tasks and schema files to this dax
+    """
+    mapper = HscMapper(root=inputRepo, outputRoot=outPath)
+    mapperFile = peg.File(os.path.join(outPath, "_mapper"))
+
+    # Pipeline: processCcd
+    preProcessCcd = peg.Job(name="processCcd")
+    preProcessCcd.uses(mapperFile, link=peg.Link.INPUT)
+    preProcessCcd.addArguments(outPath, "--output", outPath, " --doraise")
+    for schema in ["icSrc_schema", "src_schema"]:
+        outFile = getDataFile(mapper, schema, {}, create=True)
+        dax.addFile(outFile)
+        preProcessCcd.uses(outFile, link=peg.Link.OUTPUT)
+    dax.addJob(preProcessCcd)
+
+    # Pipeline: makeSkyMap: skip
+    # Pipeline: makeCoaddTempExp: skip
+    # Pipeline: assembleCoadd: skip
+
+    # Pipeline: detectCoaddSources
+    preDetectCoaddSources = peg.Job(name="detectCoaddSources")
+    preDetectCoaddSources.uses(mapperFile, link=peg.Link.INPUT)
+    preDetectCoaddSources.addArguments(outPath, "--output", outPath, " --doraise")
+    deepCoadd_det_schema = getDataFile(mapper, "deepCoadd_det_schema", {}, create=True)
+    dax.addFile(deepCoadd_det_schema)
+    preDetectCoaddSources.uses(deepCoadd_det_schema, link=peg.Link.OUTPUT)
+    dax.addJob(preDetectCoaddSources)
+
+    # Pipeline: mergeCoaddDetections
+    preMergeCoaddDetections = peg.Job(name="mergeCoaddDetections")
+    preMergeCoaddDetections.uses(mapperFile, link=peg.Link.INPUT)
+    preMergeCoaddDetections.uses(deepCoadd_det_schema, link=peg.Link.INPUT)
+    preMergeCoaddDetections.addArguments(outPath, "--output", outPath, " --doraise")
+    for schema in ["deepCoadd_mergeDet_schema", "deepCoadd_peak_schema"]:
+        outFile = getDataFile(mapper, schema, {}, create=True)
+        dax.addFile(outFile)
+        preMergeCoaddDetections.uses(outFile, link=peg.Link.OUTPUT)
+    dax.addJob(preMergeCoaddDetections)
+
+    # Pipeline: measureCoaddSources
+    preMeasureCoaddSources = peg.Job(name="measureCoaddSources")
+    preMeasureCoaddSources.uses(mapperFile, link=peg.Link.INPUT)
+    preMeasureCoaddSources.addArguments(outPath, "--output", outPath, " --doraise")
+    for inputType in ["deepCoadd_mergeDet_schema", "deepCoadd_peak_schema", "src_schema"]:
+        inFile = getDataFile(mapper, inputType, {}, create=False)
+        preMeasureCoaddSources.uses(inFile, link=peg.Link.INPUT)
+
+    deepCoadd_meas_schema = getDataFile(mapper, "deepCoadd_meas_schema", {}, create=True)
+    dax.addFile(deepCoadd_meas_schema)
+    preMeasureCoaddSources.uses(deepCoadd_meas_schema, link=peg.Link.OUTPUT)
+    dax.addJob(preMeasureCoaddSources)
+
+    # Pipeline: mergeCoaddMeasurements
+    preMergeCoaddMeasurements = peg.Job(name="mergeCoaddMeasurements")
+    preMergeCoaddMeasurements.uses(mapperFile, link=peg.Link.INPUT)
+    preMergeCoaddMeasurements.uses(deepCoadd_meas_schema, link=peg.Link.INPUT)
+    preMergeCoaddMeasurements.addArguments(outPath, "--output", outPath, " --doraise")
+    deepCoadd_ref_schema = getDataFile(mapper, "deepCoadd_ref_schema", {}, create=True)
+    dax.addFile(deepCoadd_ref_schema)
+    preMergeCoaddMeasurements.uses(deepCoadd_ref_schema, link=peg.Link.OUTPUT)
+    dax.addJob(preMergeCoaddMeasurements)
+
+    # Pipeline: forcedPhotCoadd
+    preForcedPhotCoadd = peg.Job(name="forcedPhotCoadd")
+    preForcedPhotCoadd.uses(mapperFile, link=peg.Link.INPUT)
+    preForcedPhotCoadd.uses(deepCoadd_ref_schema, link=peg.Link.INPUT)
+    preForcedPhotCoadd.addArguments(outPath, "--output", outPath, " --doraise")
+    deepCoadd_forced_src_schema = getDataFile(mapper, "deepCoadd_forced_src_schema", {}, create=True)
+    dax.addFile(deepCoadd_forced_src_schema)
+    preForcedPhotCoadd.uses(deepCoadd_forced_src_schema, link=peg.Link.OUTPUT)
+    dax.addJob(preForcedPhotCoadd)
+
+    # Pipeline: forcedPhotCcd
+    preForcedPhotCcd = peg.Job(name="forcedPhotCcd")
+    preForcedPhotCcd.uses(mapperFile, link=peg.Link.INPUT)
+    preForcedPhotCcd.uses(deepCoadd_ref_schema, link=peg.Link.INPUT)
+    forcedPhotCcdConfig = peg.File("forcedPhotCcdConfig.py")
+    preForcedPhotCcd.uses(forcedPhotCcdConfig, link=peg.Link.INPUT)
+    preForcedPhotCcd.addArguments(outPath, "--output", outPath, " --doraise",
+                                  "-C", forcedPhotCcdConfig)
+    forced_src_schema = getDataFile(mapper, "forced_src_schema", {}, create=True)
+    dax.addFile(forced_src_schema)
+    preForcedPhotCcd.uses(forced_src_schema, link=peg.Link.OUTPUT)
+    dax.addJob(preForcedPhotCcd)
+
+
 def generateDax(name="dax"):
     """Generate a Pegasus DAX abstract workflow"""
     try:
@@ -111,6 +207,7 @@ def generateDax(name="dax"):
     forcedPhotCcdConfig.addPFN(peg.PFN(filePath, site="local"))
     dax.addFile(forcedPhotCcdConfig)
 
+    preruns(dax)
     # Pipeline: processCcd
     tasksProcessCcdList = []
 
@@ -123,6 +220,9 @@ def generateDax(name="dax"):
         processCcd.uses(registry, link=peg.Link.INPUT)
         processCcd.uses(calibRegistry, link=peg.Link.INPUT)
         processCcd.uses(mapperFile, link=peg.Link.INPUT)
+        for inputType in ["icSrc_schema", "src_schema"]:
+            inFile = getDataFile(mapper, inputType, {}, create=False)
+            processCcd.uses(inFile, link=peg.Link.INPUT)
 
         inFile = getDataFile(mapperInput, "raw", data.dataId, create=True, replaceRootPath=inputRepo)
         dax.addFile(inFile)
@@ -248,10 +348,11 @@ def generateDax(name="dax"):
         detectCoaddSources.setStderr(logDetectCoaddSources)
         detectCoaddSources.uses(logDetectCoaddSources, link=peg.Link.OUTPUT)
 
-        for outputType in ["deepCoadd_calexp", "deepCoadd_calexp_background", "deepCoadd_det", "deepCoadd_det_schema"]:
+        inFile = getDataFile(mapper, "deepCoadd_det_schema", {}, create=False)
+        detectCoaddSources.uses(inFile, link=peg.Link.INPUT)
+        for outputType in ["deepCoadd_calexp", "deepCoadd_calexp_background", "deepCoadd_det"]:
             outFile = getDataFile(mapper, outputType, coaddId, create=True)
-            if not dax.hasFile(outFile):  # Only one deepCoadd_det_schema (TODO)
-                dax.addFile(outFile)
+            dax.addFile(outFile)
             detectCoaddSources.uses(outFile, link=peg.Link.OUTPUT)
 
         dax.addJob(detectCoaddSources)
@@ -277,7 +378,10 @@ def generateDax(name="dax"):
     mergeCoaddDetections.setStderr(logMergeCoaddDetections)
     mergeCoaddDetections.uses(logMergeCoaddDetections, link=peg.Link.OUTPUT)
 
-    for outputType in ["deepCoadd_mergeDet", "deepCoadd_mergeDet_schema", "deepCoadd_peak_schema"]:
+    for inputType in ["deepCoadd_mergeDet_schema", "deepCoadd_peak_schema"]:
+        inFile = getDataFile(mapper, inputType, {}, create=False)
+        mergeCoaddDetections.uses(inFile, link=peg.Link.INPUT)
+    for outputType in ["deepCoadd_mergeDet"]:
         outFile = getDataFile(mapper, outputType, patchDataId, create=True)
         dax.addFile(outFile)
         mergeCoaddDetections.uses(outFile, link=peg.Link.OUTPUT)
@@ -314,10 +418,11 @@ def generateDax(name="dax"):
         measureCoaddSources.setStderr(logMeasureCoaddSources)
         measureCoaddSources.uses(logMeasureCoaddSources, link=peg.Link.OUTPUT)
 
-        for outputType in ["deepCoadd_meas_schema", "deepCoadd_meas", "deepCoadd_srcMatch"]:
+        inFile = getDataFile(mapper, "deepCoadd_meas_schema", {}, create=False)
+        measureCoaddSources.uses(inFile, link=peg.Link.INPUT)
+        for outputType in ["deepCoadd_meas", "deepCoadd_srcMatch"]:
             outFile = getDataFile(mapper, outputType, coaddId, create=True)
-            if not dax.hasFile(outFile):  # Only one deepCoadd_meas_schema (TODO)
-                dax.addFile(outFile)
+            dax.addFile(outFile)
             measureCoaddSources.uses(outFile, link=peg.Link.OUTPUT)
 
         dax.addJob(measureCoaddSources)
@@ -343,10 +448,9 @@ def generateDax(name="dax"):
     mergeCoaddMeasurements.setStderr(logMergeCoaddMeasurements)
     mergeCoaddMeasurements.uses(logMergeCoaddMeasurements, link=peg.Link.OUTPUT)
 
-    for outputType in ["deepCoadd_ref", "deepCoadd_ref_schema"]:
-        outFile = getDataFile(mapper, outputType, patchDataId, create=True)
-        dax.addFile(outFile)
-        mergeCoaddMeasurements.uses(outFile, link=peg.Link.OUTPUT)
+    outFile = getDataFile(mapper, "deepCoadd_ref", patchDataId, create=True)
+    dax.addFile(outFile)
+    mergeCoaddMeasurements.uses(outFile, link=peg.Link.OUTPUT)
 
     dax.addJob(mergeCoaddMeasurements)
 
@@ -374,11 +478,11 @@ def generateDax(name="dax"):
         forcedPhotCoadd.setStderr(logForcedPhotCoadd)
         forcedPhotCoadd.uses(logForcedPhotCoadd, link=peg.Link.OUTPUT)
 
-        for outputType in ["deepCoadd_forced_src_schema", "deepCoadd_forced_src"]:
-            outFile = getDataFile(mapper, outputType, coaddId, create=True)
-            if not dax.hasFile(outFile):  # Only one deepCoadd_forced_src_schema (TODO)
-                dax.addFile(outFile)
-            forcedPhotCoadd.uses(outFile, link=peg.Link.OUTPUT)
+        inFile = getDataFile(mapper, "deepCoadd_forced_src_schema", {}, create=False)
+        forcedPhotCoadd.uses(inFile, link=peg.Link.INPUT)
+        outFile = getDataFile(mapper, "deepCoadd_forced_src", coaddId, create=True)
+        dax.addFile(outFile)
+        forcedPhotCoadd.uses(outFile, link=peg.Link.OUTPUT)
 
         dax.addJob(forcedPhotCoadd)
 
@@ -405,12 +509,12 @@ def generateDax(name="dax"):
         forcedPhotCcd.setStderr(logForcedPhotCcd)
         forcedPhotCcd.uses(logForcedPhotCcd, link=peg.Link.OUTPUT)
 
-        for outputType in ["forced_src", "forced_src_schema"]:
-            dataId = dict(tract=0, **data.dataId)
-            outFile = getDataFile(mapper, outputType, dataId, create=True)
-            if not dax.hasFile(outFile):  # Only one forced_src_schema (TODO)
-                dax.addFile(outFile)
-            forcedPhotCcd.uses(outFile, link=peg.Link.OUTPUT)
+        inFile = getDataFile(mapper, "forced_src_schema", {}, create=False)
+        forcedPhotCcd.uses(inFile, link=peg.Link.INPUT)
+        dataId = dict(tract=0, **data.dataId)
+        outFile = getDataFile(mapper, "forced_src", dataId, create=True)
+        dax.addFile(outFile)
+        forcedPhotCcd.uses(outFile, link=peg.Link.OUTPUT)
 
         dax.addJob(forcedPhotCcd)
 
