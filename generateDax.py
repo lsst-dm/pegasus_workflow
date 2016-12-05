@@ -62,7 +62,8 @@ def getDataFile(mapper, datasetType, dataId, create=False, replaceRootPath=None)
 
     if create:
         fileEntry = peg.File(lfn)
-        fileEntry.addPFN(peg.PFN(filePath, site="local"))
+        if not filePath.startswith(outPath):
+            fileEntry.addPFN(peg.PFN(filePath, site="local"))
         logger.debug("%s %s: %s -> %s", datasetType, dataId, filePath, lfn)
 
     return fileEntry
