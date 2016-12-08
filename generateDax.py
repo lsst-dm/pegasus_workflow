@@ -2,7 +2,6 @@
 import os
 import Pegasus.DAX3 as peg
 
-import lsst.daf.persistence as dafPersist
 import lsst.log
 import lsst.utils
 from lsst.obs.hsc.hscMapper import HscMapper
@@ -176,10 +175,6 @@ def generateDax(name="dax"):
         dax = AutoADAG(name)
 
     # Construct these mappers only for creating dax, not for actual runs.
-    inputArgs = dafPersist.RepositoryArgs(
-        mode='r', mapper=HscMapper, root=inputRepo)  # read-only input
-    outputArgs = dafPersist.RepositoryArgs(
-        mode='w', mapper=HscMapper, root=outPath)  # write-only output
     mapperInput = HscMapper(root=inputRepo)
     mapper = HscMapper(root=inputRepo, outputRoot=outPath)
 
