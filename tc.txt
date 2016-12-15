@@ -1,7 +1,7 @@
 
 tr processCcd {
     profile condor "request_memory" "4000"
-    site local {
+    site lsstvc {
         pfn "${PIPE_TASKS_DIR}/bin/processCcd.py"
         arch "x86_64"
         os "linux"
@@ -10,7 +10,7 @@ tr processCcd {
 }
 
 tr makeSkyMap {
-    site local {
+    site lsstvc {
         pfn "${PIPE_TASKS_DIR}/bin/makeSkyMap.py"
         arch "x86_64"
         os "linux"
@@ -19,7 +19,7 @@ tr makeSkyMap {
 }
 
 tr makeDiscreteSkyMap {
-    site local {
+    site lsstvc {
         pfn "${PIPE_TASKS_DIR}/bin/makeDiscreteSkyMap.py"
         arch "x86_64"
         os "linux"
@@ -28,7 +28,7 @@ tr makeDiscreteSkyMap {
 }
 
 tr makeCoaddTempExp {
-    site local {
+    site lsstvc {
         pfn "${PIPE_TASKS_DIR}/bin/makeCoaddTempExp.py"
         arch "x86_64"
         os "linux"
@@ -37,7 +37,7 @@ tr makeCoaddTempExp {
 }
 
 tr assembleCoadd {
-    site local {
+    site lsstvc {
         pfn "${PIPE_TASKS_DIR}/bin/assembleCoadd.py"
         arch "x86_64"
         os "linux"
@@ -46,7 +46,7 @@ tr assembleCoadd {
 }
 
 tr detectCoaddSources {
-    site local {
+    site lsstvc {
         pfn "${PIPE_TASKS_DIR}/bin/detectCoaddSources.py"
         arch "x86_64"
         os "linux"
@@ -55,7 +55,7 @@ tr detectCoaddSources {
 }
 
 tr mergeCoaddDetections {
-    site local {
+    site lsstvc {
         pfn "${PIPE_TASKS_DIR}/bin/mergeCoaddDetections.py"
         arch "x86_64"
         os "linux"
@@ -64,7 +64,7 @@ tr mergeCoaddDetections {
 }
 
 tr measureCoaddSources {
-    site local {
+    site lsstvc {
         pfn "${PIPE_TASKS_DIR}/bin/measureCoaddSources.py"
         arch "x86_64"
         os "linux"
@@ -73,7 +73,7 @@ tr measureCoaddSources {
 }
 
 tr mergeCoaddMeasurements {
-    site local {
+    site lsstvc {
         pfn "${PIPE_TASKS_DIR}/bin/mergeCoaddMeasurements.py"
         arch "x86_64"
         os "linux"
@@ -82,7 +82,7 @@ tr mergeCoaddMeasurements {
 }
 
 tr forcedPhotCoadd {
-    site local {
+    site lsstvc {
         pfn "${MEAS_BASE_DIR}/bin/forcedPhotCoadd.py"
         arch "x86_64"
         os "linux"
@@ -91,7 +91,7 @@ tr forcedPhotCoadd {
 }
 
 tr forcedPhotCcd {
-    site local {
+    site lsstvc {
         pfn "${MEAS_BASE_DIR}/bin/forcedPhotCcd.py"
         arch "x86_64"
         os "linux"
