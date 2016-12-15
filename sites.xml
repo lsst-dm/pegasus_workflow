@@ -29,5 +29,6 @@
         <profile namespace="env" key="PEGASUS_HOME" >/software/daues/pegasus/pegasus-4.7.2-1/usr</profile>
         <profile namespace="condor" key="requirements">(ALLOCATED_NODE_SET == &quot;${NODESET}&quot;)</profile>
         <profile namespace="condor" key="+JOB_NODE_SET">&quot;${NODESET}&quot;</profile>
+        <profile namespace="env" key="EUPS_USERDATA" >/scratch/${USER}/eupsUserData</profile>
     </site>
 </sitecatalog>
