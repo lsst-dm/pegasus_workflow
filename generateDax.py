@@ -64,6 +64,7 @@ def getDataFile(mapper, datasetType, dataId, create=False, replaceRootPath=None)
         fileEntry = peg.File(lfn)
         if not filePath.startswith(outPath):
             fileEntry.addPFN(peg.PFN(filePath, site="local"))
+            fileEntry.addPFN(peg.PFN(filePath, site="lsstvc"))
         logger.debug("%s %s: %s -> %s", datasetType, dataId, filePath, lfn)
 
     return fileEntry
@@ -186,26 +187,31 @@ def generateDax(name="dax"):
     filePathMapper = os.path.join(inputRepo, "_mapper")
     mapperFile = peg.File(os.path.join(outPath, "_mapper"))
     mapperFile.addPFN(peg.PFN(filePathMapper, site="local"))
+    mapperFile.addPFN(peg.PFN(filePathMapper, site="lsstvc"))
     dax.addFile(mapperFile)
 
     filePathRegistry = os.path.join(inputRepo, "registry.sqlite3")
     registry = peg.File(os.path.join(outPath, "registry.sqlite3"))
     registry.addPFN(peg.PFN(filePathRegistry, site="local"))
+    registry.addPFN(peg.PFN(filePathRegistry, site="lsstvc"))
     dax.addFile(registry)
 
     filePathCalibRegistry = os.path.join(calibRepo, "calibRegistry.sqlite3")
     calibRegistry = peg.File(os.path.join(outPath, "calibRegistry.sqlite3"))
     calibRegistry.addPFN(peg.PFN(filePathCalibRegistry, site="local"))
+    calibRegistry.addPFN(peg.PFN(filePathCalibRegistry, site="lsstvc"))
     dax.addFile(calibRegistry)
 
     filePath = os.path.join(ciHscDir, "skymap.py")
     skymapConfig = peg.File("skymap.py")
     skymapConfig.addPFN(peg.PFN(filePath, site="local"))
+    skymapConfig.addPFN(peg.PFN(filePath, site="lsstvc"))
     dax.addFile(skymapConfig)
 
     filePath = os.path.join(ciHscDir, "forcedPhotCcdConfig.py")
     forcedPhotCcdConfig = peg.File("forcedPhotCcdConfig.py")
     forcedPhotCcdConfig.addPFN(peg.PFN(filePath, site="local"))
+    forcedPhotCcdConfig.addPFN(peg.PFN(filePath, site="lsstvc"))
     dax.addFile(forcedPhotCcdConfig)
 
     preruns(dax)

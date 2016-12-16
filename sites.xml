@@ -5,15 +5,30 @@
     <!-- The local site contains information about the submit host -->
     <site handle="local" arch="x86_64" os="LINUX">
         <!-- This is where intermediate data will be stored -->
-        <directory type="shared-scratch" path="/home/centos/scratch/">
-            <file-server operation="all" url="file:///home/centos/scratch/"/>
+        <directory type="shared-scratch" path="${HOME}/scratch/">
+            <file-server operation="all" url="file://${HOME}/scratch/"/>
         </directory>
         <!-- This is where output data will be stored -->
-        <directory type="shared-storage" path="/home/centos/storage/">
-            <file-server operation="all" url="file:///home/centos/storage"/>
+        <directory type="shared-storage" path="${HOME}/storage/">
+            <file-server operation="all" url="file://${HOME}/storage"/>
         </directory>
 
         <!-- Copy all env var to use the LSST Stack -->
         <profile namespace="condor" key="getEnv">True</profile>
+    </site>
+
+    <site handle="lsstvc" arch="x86_64" os="linux">
+        <directory type="shared-scratch" path="/scratch/${USER}/pegasus_scratch/">
+            <file-server operation="all" url="file:///scratch/${USER}/pegasus_scratch/"/>
+        </directory>
+        <profile namespace="pegasus" key="style" >condor</profile>
+        <profile namespace="condor" key="universe" >vanilla</profile>
+        <!-- set if the compute site filesystem is accessible locally on the submit host -->
+        <profile namespace="pegasus" key="auxillary.local">true</profile>
+        <profile namespace="condor" key="getEnv">True</profile>
+        <profile namespace="env" key="PEGASUS_HOME" >/software/daues/pegasus/pegasus-4.7.2-1/usr</profile>
+        <profile namespace="condor" key="requirements">(ALLOCATED_NODE_SET == &quot;${NODESET}&quot;)</profile>
+        <profile namespace="condor" key="+JOB_NODE_SET">&quot;${NODESET}&quot;</profile>
+        <profile namespace="env" key="EUPS_USERDATA" >/scratch/${USER}/eupsUserData</profile>
     </site>
 </sitecatalog>
