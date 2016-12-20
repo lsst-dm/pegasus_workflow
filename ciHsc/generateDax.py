@@ -525,7 +525,7 @@ def generateDax(name="dax"):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate a DAX")
-    parser.add_argument("-i", "--inputData", default="inputData_cihsc.py",
+    parser.add_argument("-i", "--inputData", default="ciHsc/inputData.py",
                         help="a file including input data information")
     args = parser.parse_args()
     with open(args.inputData) as f:
