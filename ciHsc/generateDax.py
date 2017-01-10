@@ -1,12 +1,11 @@
 #!/usr/bin/env python
+import argparse
 import os
 import Pegasus.DAX3 as peg
 
-import lsst.daf.persistence as dafPersist
 import lsst.log
 import lsst.utils
 from lsst.obs.hsc.hscMapper import HscMapper
-from inputData import *
 
 logger = lsst.log.Log.getLogger("workflow")
 logger.setLevel(lsst.log.DEBUG)
@@ -176,10 +175,6 @@ def generateDax(name="dax"):
         dax = AutoADAG(name)
 
     # Construct these mappers only for creating dax, not for actual runs.
-    inputArgs = dafPersist.RepositoryArgs(
-        mode='r', mapper=HscMapper, root=inputRepo)  # read-only input
-    outputArgs = dafPersist.RepositoryArgs(
-        mode='w', mapper=HscMapper, root=outPath)  # write-only output
     mapperInput = HscMapper(root=inputRepo)
     mapper = HscMapper(root=inputRepo, outputRoot=outPath)
 
@@ -529,6 +524,14 @@ def generateDax(name="dax"):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Generate a DAX")
+    parser.add_argument("-i", "--inputData", default="ciHsc/inputData.py",
+                        help="a file including input data information")
+    args = parser.parse_args()
+    with open(args.inputData) as f:
+        data = compile(f.read(), args.inputData, 'exec')
+        exec(data)
+
     dax = generateDax("CiHscDax")
     f = open("ciHsc.dax", "w")
     dax.writeXML(f)

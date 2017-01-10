@@ -15,10 +15,10 @@ Setup
   ```
 
 
-Steps
------
+Steps (with the ciHsc example)
+------------------------------
 
-- python generateDax.py
+- python ciHsc/generateDax.py -i ciHsc/inputData.py
 - ./plan_dax.sh ciHsc.dax
 
 
