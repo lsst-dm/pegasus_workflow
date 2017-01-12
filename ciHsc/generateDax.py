@@ -527,12 +527,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate a DAX")
     parser.add_argument("-i", "--inputData", default="ciHsc/inputData.py",
                         help="a file including input data information")
+    parser.add_argument("-o", "--outputFile", type=str, default="ciHsc.dax",
+                        help="file name for the output dax xml")
     args = parser.parse_args()
     with open(args.inputData) as f:
         data = compile(f.read(), args.inputData, 'exec')
         exec(data)
 
     dax = generateDax("CiHscDax")
-    f = open("ciHsc.dax", "w")
-    dax.writeXML(f)
-    f.close()
+    with open(args.outputFile, "w") as f:
+        dax.writeXML(f)
