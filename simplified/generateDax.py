@@ -100,8 +100,8 @@ def generateDax(name="dax"):
     calibRegistry.addPFN(peg.PFN(filePathCalibRegistry, site="lsstvc"))
     dax.addFile(calibRegistry)
 
-    filePath = os.path.join(ciHscDir, "skymap.py")
-    skymapConfig = peg.File("skymap.py")
+    filePath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "skymapConfig.py")
+    skymapConfig = peg.File("skymapConfig.py")
     skymapConfig.addPFN(peg.PFN(filePath, site="local"))
     skymapConfig.addPFN(peg.PFN(filePath, site="lsstvc"))
     dax.addFile(skymapConfig)
@@ -145,7 +145,6 @@ def generateDax(name="dax"):
     # Pipeline: makeSkyMap
     makeSkyMap = peg.Job(name="makeSkyMap")
     makeSkyMap.uses(mapperFile, link=peg.Link.INPUT)
-    #makeSkyMap.uses(registry, link=peg.Link.INPUT)
     makeSkyMap.uses(skymapConfig, link=peg.Link.INPUT)
     makeSkyMap.addArguments(outPath, "--output", outPath, "-C", skymapConfig, " --doraise")
     logMakeSkyMap = peg.File("logMakeSkyMap")
@@ -166,19 +165,20 @@ def generateDax(name="dax"):
         for visit in allExposures[filterName]:
             makeCoaddTempExp = peg.Job(name="makeCoaddTempExp")
             makeCoaddTempExp.uses(mapperFile, link=peg.Link.INPUT)
+            makeCoaddTempExp.uses(registry, link=peg.Link.INPUT)
             makeCoaddTempExp.uses(skyMap, link=peg.Link.INPUT)
             for data in allExposures[filterName][visit]:
                 calexp = getDataFile(mapper, "calexp", data.dataId, create=False)
                 makeCoaddTempExp.uses(calexp, link=peg.Link.INPUT)
 
             makeCoaddTempExp.addArguments(
-                outPath, "--output", outPath, " --doraise",
+                outPath, "--output", outPath, " --doraise", "--no-versions",
                 ident, " -c doApplyUberCal=False ",
                 " ".join(data.id("--selectId") for data in allExposures[filterName][visit])
             )
             logger.debug(
                 "Adding makeCoaddTempExp %s %s %s %s %s %s %s",
-                outPath, "--output", outPath, " --doraise",
+                outPath, "--output", outPath, " --doraise", "--no-versions",
                 ident, " -c doApplyUberCal=False ",
                 " ".join(data.id("--selectId") for data in allExposures[filterName][visit])
             )
@@ -196,40 +196,6 @@ def generateDax(name="dax"):
             coaddTempExpList.append(deepCoadd_tempExp)
 
             dax.addJob(makeCoaddTempExp)
-
-        # Pipeline: assembleCoadd per filter
-        assembleCoadd = peg.Job(name="assembleCoadd")
-        assembleCoadd.uses(mapperFile, link=peg.Link.INPUT)
-        assembleCoadd.uses(registry, link=peg.Link.INPUT)
-        assembleCoadd.uses(skyMap, link=peg.Link.INPUT)
-        assembleCoadd.addArguments(
-            outPath, "--output", outPath, ident, " --doraise",
-            " ".join(data.id("--selectId") for data in allData[filterName])
-        )
-        logger.debug(
-            "Adding assembleCoadd %s %s %s %s %s %s",
-            outPath, "--output", outPath, ident, " --doraise",
-            " ".join(data.id("--selectId") for data in allData[filterName])
-        )
-
-        # calexp_md is used in SelectDataIdContainer
-        for data in allData[filterName]:
-            calexp = getDataFile(mapper, "calexp", data.dataId, create=False)
-            assembleCoadd.uses(calexp, link=peg.Link.INPUT)
-
-        for coaddTempExp in coaddTempExpList:
-            assembleCoadd.uses(coaddTempExp, link=peg.Link.INPUT)
-
-        coaddId = dict(filter=filterName, **patchDataId)
-        logAssembleCoadd = peg.File("logAssembleCoadd.%(tract)d-%(patch)s-%(filter)s" % coaddId)
-        dax.addFile(logAssembleCoadd)
-        assembleCoadd.setStderr(logAssembleCoadd)
-        assembleCoadd.uses(logAssembleCoadd, link=peg.Link.OUTPUT)
-
-        coadd = getDataFile(mapper, "deepCoadd", coaddId, create=True)
-        dax.addFile(coadd)
-        assembleCoadd.uses(coadd, link=peg.Link.OUTPUT)
-        dax.addJob(assembleCoadd)
 
     return dax
 

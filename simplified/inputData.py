@@ -31,14 +31,10 @@ allData = {"HSC-R": [Data(903334, 16),
                      Data(903334, 23),
                      Data(903336, 17),
                      Data(903336, 24),
-                     Data(903342, 4),
-                     Data(903342, 10),
-                     Data(903344, 5),
-                     Data(903344, 11),
                      ],
            }
 
-patchDataId = dict(tract=0, patch="5,4")
+patchDataId = dict(tract=0, patch="8,6")
 patchId = " ".join(("%s=%s" % (k, v) for k, v in patchDataId.iteritems()))
 
 # Create "exposures" as in ci_hsc/SConstruct processCoadds
