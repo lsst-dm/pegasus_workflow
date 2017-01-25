@@ -273,6 +273,7 @@ def generateDax(name="dax"):
         for visit in allExposures[filterName]:
             makeCoaddTempExp = peg.Job(name="makeCoaddTempExp")
             makeCoaddTempExp.uses(mapperFile, link=peg.Link.INPUT)
+            makeCoaddTempExp.uses(registry, link=peg.Link.INPUT)
             makeCoaddTempExp.uses(skyMap, link=peg.Link.INPUT)
             for data in allExposures[filterName][visit]:
                 calexp = getDataFile(mapper, "calexp", data.dataId, create=False)
