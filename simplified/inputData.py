@@ -1,31 +1,8 @@
 # Information of the raw data in ci_hsc
 # Excerpted from ci_hsc/SConstruct
 from collections import defaultdict
-from lsst.pipe.base import Struct
+from data import Data
 
-
-class Data(Struct):
-    """Data we can process"""
-
-    def __init__(self, visit, ccd):
-        Struct.__init__(self, visit=visit, ccd=ccd)
-
-    @property
-    def name(self):
-        """Returns a suitable name for this data"""
-        return "%d-%d" % (self.visit, self.ccd)
-
-    @property
-    def dataId(self):
-        """Returns the dataId for this data"""
-        return dict(visit=self.visit, ccd=self.ccd)
-
-    def id(self, prefix="--id", tract=None):
-        """Returns a suitable --id command-line string"""
-        r = "%s visit=%d ccd=%d" % (prefix, self.visit, self.ccd)
-        if tract is not None:
-            r += " tract=%d" % tract
-        return r
 
 allData = {"HSC-R": [Data(903334, 16),
                      Data(903334, 23),
