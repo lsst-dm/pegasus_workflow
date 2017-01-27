@@ -2,6 +2,7 @@
 import argparse
 import os
 import Pegasus.DAX3 as peg
+from collections import defaultdict
 
 import lsst.log
 import lsst.utils
@@ -109,6 +110,12 @@ def generateDax(name="dax"):
     # Pipeline: processCcd
     tasksProcessCcdList = []
 
+    # Create "exposures" as in ci_hsc/SConstruct processCoadds
+    allExposures = {filterName: defaultdict(list) for filterName in allData}
+    for filterName in allData:
+        for data in allData[filterName]:
+            allExposures[filterName][data.visit].append(data)
+
     for data in sum(allData.itervalues(), []):
         logger.debug("processCcd dataId: %s", data.dataId)
 
@@ -157,6 +164,8 @@ def generateDax(name="dax"):
     makeSkyMap.uses(skyMap, link=peg.Link.OUTPUT)
 
     dax.addJob(makeSkyMap)
+
+    patchId = " ".join(("%s=%s" % (k, v) for k, v in patchDataId.iteritems()))
 
     # Pipeline: makeCoaddTempExp per visit per filter
     for filterName in allExposures:
