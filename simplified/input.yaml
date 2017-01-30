@@ -1,0 +1,9 @@
+filters:
+  HSC-R:
+    - { visit: 903334, ccd: 16 }
+    - { visit: 903334, ccd: 23 }
+    - { visit: 903336, ccd: 17 }
+    - { visit: 903336, ccd: 24 }
+patch: "8,6"
+tract: 0
+

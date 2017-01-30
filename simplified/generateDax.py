@@ -2,11 +2,14 @@
 import argparse
 import os
 import Pegasus.DAX3 as peg
+import yaml
 from collections import defaultdict
 
 import lsst.log
 import lsst.utils
 from lsst.obs.hsc.hscMapper import HscMapper
+
+from data import Data
 
 logger = lsst.log.Log.getLogger("workflow")
 logger.setLevel(lsst.log.INFO)
@@ -69,7 +72,8 @@ def getDataFile(mapper, datasetType, dataId, create=False, replaceRootPath=None)
 
     return fileEntry
 
-def generateDax(name="dax"):
+
+def generateDax(allData, extra, name="dax"):
     """Generate a Pegasus DAX abstract workflow"""
     try:
         from AutoADAG import AutoADAG
@@ -165,9 +169,8 @@ def generateDax(name="dax"):
 
     dax.addJob(makeSkyMap)
 
-    patchId = " ".join(("%s=%s" % (k, v) for k, v in patchDataId.iteritems()))
-
     # Pipeline: makeCoaddTempExp per visit per filter
+    patchId = " ".join(("%s=%s" % (k, v) for k, v in extra.iteritems()))
     for filterName in allExposures:
         ident = "--id " + patchId + " filter=" + filterName
         coaddTempExpList = []
@@ -214,11 +217,14 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--inputData", default="ciHsc/inputData.py",
                         help="a file including input data information")
     args = parser.parse_args()
-    with open(args.inputData) as f:
-        data = compile(f.read(), args.inputData, 'exec')
-        exec(data)
 
-    dax = generateDax("CiHscDax")
+    with open(args.inputData) as f:
+        data = yaml.load(f)
+    visits = {filterName: [Data(**dataId) for dataId in dataIds]
+              for filterName, dataIds in data["filters"].items()}
+    patchDataId = {k: v for k, v in data.items() if k in ["patch", "tract"]}
+
+    dax = generateDax(visits, patchDataId, name="CiHscDax")
     f = open("ciHsc.dax", "w")
     dax.writeXML(f)
     f.close()
