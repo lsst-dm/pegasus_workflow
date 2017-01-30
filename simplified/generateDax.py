@@ -125,8 +125,7 @@ def generateDax(allData, extra, name='dax'):
         logger.debug('processCcd dataId: %s', data.dataId)
 
         processCcd = peg.Job(name='processCcd')
-        processCcd.addArguments(outPath, '--calib', outPath, '--output', outPath,
-                                ' --doraise', data.id())
+        processCcd.addArguments(outPath, '--calib', outPath, '--output', outPath, ' --doraise', data.id())
         processCcd.uses(registry, link=peg.Link.INPUT)
         processCcd.uses(calibRegistry, link=peg.Link.INPUT)
         processCcd.uses(mapperFile, link=peg.Link.INPUT)
@@ -215,11 +214,10 @@ def generateDax(allData, extra, name='dax'):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Generate a DAX')
-    parser.add_argument('-i', '--inputData', default='ciHsc/inputData.py',
-                        help='a file including input data information')
+    parser.add_argument('data', help='a file including input data information')
     args = parser.parse_args()
 
-    with open(args.inputData) as f:
+    with open(args.data) as f:
         data = yaml.load(f)
     visits = {filterName: [Data(**dataId) for dataId in dataIds]
               for filterName, dataIds in data['filters'].items()}
