@@ -39,16 +39,12 @@ def getDataFile(mapper, datasetType, dataId, create=False, replaceRootPath=None)
     mapper: lsst.obs.base.CameraMapper
         A specific CameraMapper instance for getting the name and locating
         the file in a Butler repo.
-
     datasetType: `str`
         Butler dataset type
-
     dataId: `dict`
         Butler data ID
-
     create: `bool`, optional
         If True, create a new Pegasus File entry if it does not exist yet.
-
     replaceRootPath: `str`, optional
         Replace the given root path with the global outPath.
 
@@ -75,6 +71,20 @@ def getDataFile(mapper, datasetType, dataId, create=False, replaceRootPath=None)
 
 def generateDax(allData, extra, name='dax'):
     """Generate a Pegasus DAX abstract workflow.
+
+    Parameters
+    ----------
+    allData : `dict`
+        Mapping between filters and data to process.
+    extra : `dict`
+        Any additional data ids required by tasks in the workflow.
+    name : `str`, optional
+        Name of the workflow DAX, defaults to 'dax'.
+
+    Returns
+    -------
+    pegasus.ADAG :
+        Directed acyclic graph representing the workflow.
     """
     try:
         from AutoADAG import AutoADAG
