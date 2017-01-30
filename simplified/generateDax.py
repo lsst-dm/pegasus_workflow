@@ -232,8 +232,6 @@ if __name__ == '__main__':
     visits = {filterName: [Data(**dataId) for dataId in dataIds]
               for filterName, dataIds in data['filters'].items()}
     patchDataId = {k: v for k, v in data.items() if k in ['patch', 'tract']}
-
     dax = generateDax(visits, patchDataId, name='CiHscDax')
-    f = open('ciHsc.dax', 'w')
-    dax.writeXML(f)
-    f.close()
+    with open('ciHsc.dax', 'w') as f:
+        dax.writeXML(f)
