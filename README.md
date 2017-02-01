@@ -18,7 +18,7 @@ Setup
 Steps (with the ciHsc example)
 ------------------------------
 
-- python ciHsc/generateDax.py -i ciHsc/inputData.py
+- python ciHsc/generateDax.py -i ciHsc/inputData.py -o ciHsc.dax
 - ./plan_dax.sh ciHsc.dax
 
 
