@@ -87,7 +87,7 @@ def preruns(dax):
     # Pipeline: processCcd
     preProcessCcd = peg.Job(name="processCcd")
     preProcessCcd.uses(mapperFile, link=peg.Link.INPUT)
-    preProcessCcd.addArguments(outPath, "--output", outPath, " --doraise")
+    preProcessCcd.addArguments(outPath, "--output", outPath, " --doraise --no-versions")
     for schema in ["icSrc_schema", "src_schema"]:
         outFile = getDataFile(mapper, schema, {}, create=True)
         dax.addFile(outFile)
@@ -101,7 +101,7 @@ def preruns(dax):
     # Pipeline: detectCoaddSources
     preDetectCoaddSources = peg.Job(name="detectCoaddSources")
     preDetectCoaddSources.uses(mapperFile, link=peg.Link.INPUT)
-    preDetectCoaddSources.addArguments(outPath, "--output", outPath, " --doraise")
+    preDetectCoaddSources.addArguments(outPath, "--output", outPath, " --doraise --no-versions")
     deepCoadd_det_schema = getDataFile(mapper, "deepCoadd_det_schema", {}, create=True)
     dax.addFile(deepCoadd_det_schema)
     preDetectCoaddSources.uses(deepCoadd_det_schema, link=peg.Link.OUTPUT)
@@ -111,7 +111,7 @@ def preruns(dax):
     preMergeCoaddDetections = peg.Job(name="mergeCoaddDetections")
     preMergeCoaddDetections.uses(mapperFile, link=peg.Link.INPUT)
     preMergeCoaddDetections.uses(deepCoadd_det_schema, link=peg.Link.INPUT)
-    preMergeCoaddDetections.addArguments(outPath, "--output", outPath, " --doraise")
+    preMergeCoaddDetections.addArguments(outPath, "--output", outPath, " --doraise --no-versions")
     for schema in ["deepCoadd_mergeDet_schema", "deepCoadd_peak_schema"]:
         outFile = getDataFile(mapper, schema, {}, create=True)
         dax.addFile(outFile)
@@ -121,7 +121,7 @@ def preruns(dax):
     # Pipeline: measureCoaddSources
     preMeasureCoaddSources = peg.Job(name="measureCoaddSources")
     preMeasureCoaddSources.uses(mapperFile, link=peg.Link.INPUT)
-    preMeasureCoaddSources.addArguments(outPath, "--output", outPath, " --doraise")
+    preMeasureCoaddSources.addArguments(outPath, "--output", outPath, " --doraise --no-versions")
     for inputType in ["deepCoadd_mergeDet_schema", "deepCoadd_peak_schema", "src_schema"]:
         inFile = getDataFile(mapper, inputType, {}, create=False)
         preMeasureCoaddSources.uses(inFile, link=peg.Link.INPUT)
@@ -135,7 +135,7 @@ def preruns(dax):
     preMergeCoaddMeasurements = peg.Job(name="mergeCoaddMeasurements")
     preMergeCoaddMeasurements.uses(mapperFile, link=peg.Link.INPUT)
     preMergeCoaddMeasurements.uses(deepCoadd_meas_schema, link=peg.Link.INPUT)
-    preMergeCoaddMeasurements.addArguments(outPath, "--output", outPath, " --doraise")
+    preMergeCoaddMeasurements.addArguments(outPath, "--output", outPath, " --doraise --no-versions")
     deepCoadd_ref_schema = getDataFile(mapper, "deepCoadd_ref_schema", {}, create=True)
     dax.addFile(deepCoadd_ref_schema)
     preMergeCoaddMeasurements.uses(deepCoadd_ref_schema, link=peg.Link.OUTPUT)
@@ -145,7 +145,7 @@ def preruns(dax):
     preForcedPhotCoadd = peg.Job(name="forcedPhotCoadd")
     preForcedPhotCoadd.uses(mapperFile, link=peg.Link.INPUT)
     preForcedPhotCoadd.uses(deepCoadd_ref_schema, link=peg.Link.INPUT)
-    preForcedPhotCoadd.addArguments(outPath, "--output", outPath, " --doraise")
+    preForcedPhotCoadd.addArguments(outPath, "--output", outPath, " --doraise --no-versions")
     deepCoadd_forced_src_schema = getDataFile(mapper, "deepCoadd_forced_src_schema", {}, create=True)
     dax.addFile(deepCoadd_forced_src_schema)
     preForcedPhotCoadd.uses(deepCoadd_forced_src_schema, link=peg.Link.OUTPUT)
@@ -157,7 +157,7 @@ def preruns(dax):
     preForcedPhotCcd.uses(deepCoadd_ref_schema, link=peg.Link.INPUT)
     forcedPhotCcdConfig = peg.File("forcedPhotCcdConfig.py")
     preForcedPhotCcd.uses(forcedPhotCcdConfig, link=peg.Link.INPUT)
-    preForcedPhotCcd.addArguments(outPath, "--output", outPath, " --doraise",
+    preForcedPhotCcd.addArguments(outPath, "--output", outPath, " --doraise --no-versions",
                                   "-C", forcedPhotCcdConfig)
     forced_src_schema = getDataFile(mapper, "forced_src_schema", {}, create=True)
     dax.addFile(forced_src_schema)
@@ -218,7 +218,7 @@ def generateDax(name="dax"):
 
         processCcd = peg.Job(name="processCcd")
         processCcd.addArguments(outPath, "--calib", outPath, "--output", outPath,
-                                " --doraise", data.id())
+                                " --doraise --no-versions", data.id())
         processCcd.uses(registry, link=peg.Link.INPUT)
         processCcd.uses(calibRegistry, link=peg.Link.INPUT)
         processCcd.uses(mapperFile, link=peg.Link.INPUT)
@@ -254,7 +254,7 @@ def generateDax(name="dax"):
     makeSkyMap.uses(mapperFile, link=peg.Link.INPUT)
     makeSkyMap.uses(registry, link=peg.Link.INPUT)
     makeSkyMap.uses(skymapConfig, link=peg.Link.INPUT)
-    makeSkyMap.addArguments(outPath, "--output", outPath, "-C", skymapConfig, " --doraise")
+    makeSkyMap.addArguments(outPath, "--output", outPath, "-C", skymapConfig, " --doraise --no-versions")
     logMakeSkyMap = peg.File("logMakeSkyMap")
     dax.addFile(logMakeSkyMap)
     makeSkyMap.setStderr(logMakeSkyMap)
@@ -280,13 +280,13 @@ def generateDax(name="dax"):
                 makeCoaddTempExp.uses(calexp, link=peg.Link.INPUT)
 
             makeCoaddTempExp.addArguments(
-                outPath, "--output", outPath, " --doraise",
+                outPath, "--output", outPath, " --doraise --no-versions",
                 ident, " -c doApplyUberCal=False ",
                 " ".join(data.id("--selectId") for data in allExposures[filterName][visit])
             )
             logger.debug(
                 "Adding makeCoaddTempExp %s %s %s %s %s %s %s",
-                outPath, "--output", outPath, " --doraise",
+                outPath, "--output", outPath, " --doraise --no-versions",
                 ident, " -c doApplyUberCal=False ",
                 " ".join(data.id("--selectId") for data in allExposures[filterName][visit])
             )
@@ -311,12 +311,12 @@ def generateDax(name="dax"):
         assembleCoadd.uses(registry, link=peg.Link.INPUT)
         assembleCoadd.uses(skyMap, link=peg.Link.INPUT)
         assembleCoadd.addArguments(
-            outPath, "--output", outPath, ident, " --doraise",
+            outPath, "--output", outPath, ident, " --doraise --no-versions",
             " ".join(data.id("--selectId") for data in allData[filterName])
         )
         logger.debug(
             "Adding assembleCoadd %s %s %s %s %s %s",
-            outPath, "--output", outPath, ident, " --doraise",
+            outPath, "--output", outPath, ident, " --doraise --no-versions",
             " ".join(data.id("--selectId") for data in allData[filterName])
         )
 
@@ -343,7 +343,7 @@ def generateDax(name="dax"):
         detectCoaddSources = peg.Job(name="detectCoaddSources")
         detectCoaddSources.uses(mapperFile, link=peg.Link.INPUT)
         detectCoaddSources.uses(coadd, link=peg.Link.INPUT)
-        detectCoaddSources.addArguments(outPath, "--output", outPath, ident, " --doraise")
+        detectCoaddSources.addArguments(outPath, "--output", outPath, ident, " --doraise --no-versions")
 
         logDetectCoaddSources = peg.File(
             "logDetectCoaddSources.%(tract)d-%(patch)s-%(filter)s" % coaddId)
@@ -372,7 +372,7 @@ def generateDax(name="dax"):
         mergeCoaddDetections.uses(inFile, link=peg.Link.INPUT)
 
     mergeCoaddDetections.addArguments(
-        outPath, "--output", outPath, " --doraise",
+        outPath, "--output", outPath, " --doraise --no-versions",
         " --id " + patchId + " filter=" + '^'.join(allExposures.keys())
     )
 
@@ -412,7 +412,7 @@ def generateDax(name="dax"):
             measureCoaddSources.uses(src, link=peg.Link.INPUT)
 
         measureCoaddSources.addArguments(
-            outPath, "--output", outPath, " --doraise",
+            outPath, "--output", outPath, " --doraise --no-versions",
             " --id " + patchId + " filter=" + filterName
         )
         logMeasureCoaddSources = peg.File(
@@ -441,7 +441,7 @@ def generateDax(name="dax"):
         mergeCoaddMeasurements.uses(inFile, link=peg.Link.INPUT)
 
     mergeCoaddMeasurements.addArguments(
-        outPath, "--output", outPath, " --doraise",
+        outPath, "--output", outPath, " --doraise --no-versions",
         " --id " + patchId + " filter=" + '^'.join(allExposures.keys())
     )
 
@@ -472,7 +472,7 @@ def generateDax(name="dax"):
             forcedPhotCoadd.uses(inFile, link=peg.Link.INPUT)
 
         forcedPhotCoadd.addArguments(
-            outPath, "--output", outPath, " --doraise",
+            outPath, "--output", outPath, " --doraise --no-versions",
             " --id " + patchId + " filter=" + filterName
         )
 
@@ -503,7 +503,7 @@ def generateDax(name="dax"):
             forcedPhotCcd.uses(inFile, link=peg.Link.INPUT)
 
         forcedPhotCcd.uses(forcedPhotCcdConfig, link=peg.Link.INPUT)
-        forcedPhotCcd.addArguments(outPath, "--output", outPath, " --doraise",
+        forcedPhotCcd.addArguments(outPath, "--output", outPath, " --doraise --no-versions",
                                    "-C", forcedPhotCcdConfig, data.id(tract=0))
         logger.debug("forcedPhotCcd with %s", data.id(tract=0))
 
