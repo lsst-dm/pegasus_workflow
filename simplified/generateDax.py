@@ -4,6 +4,7 @@ import os
 import Pegasus.DAX3 as peg
 import yaml
 from collections import defaultdict
+from itertools import chain
 
 import lsst.log
 import lsst.utils
@@ -97,129 +98,183 @@ def generateDax(allData, extra, name='dax'):
     mapperInput = HscMapper(root=inputRepo)
     mapper = HscMapper(root=inputRepo, outputRoot=outPath)
 
-    # Get the following butler or config files directly from ci_hsc package
-    filePathMapper = os.path.join(inputRepo, '_mapper')
-    mapperFile = peg.File(os.path.join(outPath, '_mapper'))
-    mapperFile.addPFN(peg.PFN(filePathMapper, site='local'))
-    mapperFile.addPFN(peg.PFN(filePathMapper, site='lsstvc'))
-    dax.addFile(mapperFile)
+    # A cache with frequently used files.
+    cache = {}
 
-    filePathRegistry = os.path.join(inputRepo, 'registry.sqlite3')
-    registry = peg.File(os.path.join(outPath, 'registry.sqlite3'))
-    registry.addPFN(peg.PFN(filePathRegistry, site='local'))
-    registry.addPFN(peg.PFN(filePathRegistry, site='lsstvc'))
-    dax.addFile(registry)
+    # Add internal butler files to the cache.
+    components = {
+        'mapper': '_mapper',
+        'registry': 'registry.sqlite3',
+        'calibRegistry': 'CALIB/calibRegistry.sqlite3',
+    }
+    lfns = {k: os.path.join(outPath, v) for k, v in components.items()}
+    pfns = {k: os.path.join(inputRepo, v) for k, v in components.items()}
+    cache.update(create_files(lfns, pfns))
 
-    filePathCalibRegistry = os.path.join(calibRepo, 'calibRegistry.sqlite3')
-    calibRegistry = peg.File(os.path.join(outPath, 'calibRegistry.sqlite3'))
-    calibRegistry.addPFN(peg.PFN(filePathCalibRegistry, site='local'))
-    calibRegistry.addPFN(peg.PFN(filePathCalibRegistry, site='lsstvc'))
-    dax.addFile(calibRegistry)
+    # Add task configuration files to the cache.
+    path = os.path.dirname(os.path.realpath(__file__))
+    lfns = {
+        'makeSkyMapConf': 'skymapConfig.py'
+    }
+    pfns = {k: os.path.join(path, v) for k, v in lfns.items()}
+    cache.update(create_files(lfns, pfns))
 
-    filePath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'skymapConfig.py')
-    skymapConfig = peg.File('skymapConfig.py')
-    skymapConfig.addPFN(peg.PFN(filePath, site='local'))
-    skymapConfig.addPFN(peg.PFN(filePath, site='lsstvc'))
-    dax.addFile(skymapConfig)
+    # The replica catalog containing all DAX-level files.
+    catalog = set()
 
     # Pipeline: processCcd
-    tasksProcessCcdList = []
+    for data in chain(*allData.values()):
+        logger.debug('processCcd dataId: %s', data.dataId)
 
-    # Create 'exposures' as in ci_hsc/SConstruct processCoadds
+        task = peg.Job(name='processCcd')
+        task.addArguments(outPath, '--calib', outPath, '--output', outPath,
+                          '--doraise', data.id())
+
+        inputs = set()
+        f = getDataFile(mapperInput, 'raw', data.dataId, create=True,
+                        replaceRootPath=inputRepo)
+        inputs.add(f)
+        for kind in ['bias', 'dark', 'flat', 'bfKernel']:
+            f = getDataFile(mapperInput, kind, data.dataId, create=True,
+                            replaceRootPath=calibRepo)
+            inputs.add(f)
+        inputs.update([v for k, v in cache.items()
+                       if k in ['mapper', 'registry', 'calibRegistry']])
+
+        outputs = set()
+        for kind in ['calexp', 'src']:
+            f = getDataFile(mapper, kind, data.dataId, create=True)
+            outputs.add(f)
+        f = peg.File('logProcessCcd.%s' % data.name)
+        task.setStderr(f)
+        outputs.add(f)
+
+        add_files = file_adder(task)
+        add_files(inputs, outputs)
+        dax.addJob(task)
+
+        catalog.update(inputs)
+        catalog.update(outputs)
+
+    # Pipeline: makeSkyMap
+    task = peg.Job(name='makeSkyMap')
+    task.addArguments(outPath, '--output', outPath,
+                      '-C', cache['makeSkyMapConf'], ' --doraise')
+    inputs = set([v for k, v in cache.items()
+                  if k in ['mapper', 'makeSkyMapConf']])
+
+    outputs = set()
+    f = getDataFile(mapper, 'deepCoadd_skyMap', {}, create=True)
+    outputs.add(f)
+    cache['makeSkyMapOut'] = f
+    f = peg.File('logMakeSkyMap')
+    outputs.add(f)
+    task.setStderr(f)
+
+    add_files = file_adder(task)
+    add_files(inputs, outputs)
+    dax.addJob(task)
+
+    catalog.update(inputs)
+    catalog.update(outputs)
+
+    # Create 'exposures' as in ci_hsc/SConstruct processCoadds.
     allExposures = {filterName: defaultdict(list) for filterName in allData}
     for filterName in allData:
         for data in allData[filterName]:
             allExposures[filterName][data.visit].append(data)
 
-    for data in sum(allData.itervalues(), []):
-        logger.debug('processCcd dataId: %s', data.dataId)
-
-        processCcd = peg.Job(name='processCcd')
-        processCcd.addArguments(outPath, '--calib', outPath, '--output', outPath, ' --doraise', data.id())
-        processCcd.uses(registry, link=peg.Link.INPUT)
-        processCcd.uses(calibRegistry, link=peg.Link.INPUT)
-        processCcd.uses(mapperFile, link=peg.Link.INPUT)
-
-        inFile = getDataFile(mapperInput, 'raw', data.dataId, create=True, replaceRootPath=inputRepo)
-        dax.addFile(inFile)
-        processCcd.uses(inFile, link=peg.Link.INPUT)
-        for inputType in ['bias', 'dark', 'flat', 'bfKernel']:
-            inFile = getDataFile(mapperInput, inputType, data.dataId,
-                                 create=True, replaceRootPath=calibRepo)
-            if not dax.hasFile(inFile):
-                dax.addFile(inFile)
-            processCcd.uses(inFile, link=peg.Link.INPUT)
-
-        for outputType in ['calexp', 'src']:
-            outFile = getDataFile(mapper, outputType, data.dataId, create=True)
-            dax.addFile(outFile)
-            processCcd.uses(outFile, link=peg.Link.OUTPUT)
-
-        logProcessCcd = peg.File('logProcessCcd.%s' % data.name)
-        dax.addFile(logProcessCcd)
-        processCcd.setStderr(logProcessCcd)
-        processCcd.uses(logProcessCcd, link=peg.Link.OUTPUT)
-
-        dax.addJob(processCcd)
-        tasksProcessCcdList.append(processCcd)
-
-    # Pipeline: makeSkyMap
-    makeSkyMap = peg.Job(name='makeSkyMap')
-    makeSkyMap.uses(mapperFile, link=peg.Link.INPUT)
-    makeSkyMap.uses(skymapConfig, link=peg.Link.INPUT)
-    makeSkyMap.addArguments(outPath, '--output', outPath, '-C', skymapConfig, ' --doraise')
-    logMakeSkyMap = peg.File('logMakeSkyMap')
-    dax.addFile(logMakeSkyMap)
-    makeSkyMap.setStderr(logMakeSkyMap)
-    makeSkyMap.uses(logMakeSkyMap, link=peg.Link.OUTPUT)
-
-    skyMap = getDataFile(mapper, 'deepCoadd_skyMap', {}, create=True)
-    dax.addFile(skyMap)
-    makeSkyMap.uses(skyMap, link=peg.Link.OUTPUT)
-
-    dax.addJob(makeSkyMap)
-
     # Pipeline: makeCoaddTempExp per visit per filter
     patchId = ' '.join(('%s=%s' % (k, v) for k, v in extra.iteritems()))
-    for filterName in allExposures:
+    for filterName, visits in allExposures.items():
         ident = '--id ' + patchId + ' filter=' + filterName
-        coaddTempExpList = []
-        for visit in allExposures[filterName]:
-            makeCoaddTempExp = peg.Job(name='makeCoaddTempExp')
-            makeCoaddTempExp.uses(mapperFile, link=peg.Link.INPUT)
-            makeCoaddTempExp.uses(registry, link=peg.Link.INPUT)
-            makeCoaddTempExp.uses(skyMap, link=peg.Link.INPUT)
-            for data in allExposures[filterName][visit]:
-                calexp = getDataFile(mapper, 'calexp', data.dataId, create=False)
-                makeCoaddTempExp.uses(calexp, link=peg.Link.INPUT)
-
-            makeCoaddTempExp.addArguments(
-                outPath, '--output', outPath, ' --doraise', '--no-versions',
-                ident, ' -c doApplyUberCal=False ',
-                ' '.join(data.id('--selectId') for data in allExposures[filterName][visit])
-            )
+        for visit, data in visits.items():
             logger.debug(
                 'Adding makeCoaddTempExp %s %s %s %s %s %s %s',
                 outPath, '--output', outPath, ' --doraise', '--no-versions',
                 ident, ' -c doApplyUberCal=False ',
-                ' '.join(data.id('--selectId') for data in allExposures[filterName][visit])
+                ' '.join(rec.id('--selectId') for rec in data)
             )
 
+            task = peg.Job(name='makeCoaddTempExp')
+            task.addArguments(
+                outPath, '--output', outPath, ' --doraise', '--no-versions',
+                ident, ' -c doApplyUberCal=False ',
+                ' '.join(rec.id('--selectId') for rec in data)
+            )
+
+            inputs = set()
+            for rec in data:
+                f = getDataFile(mapper, 'calexp', rec.dataId, create=True)
+                inputs.add(f)
+            inputs.update([v for k, v in cache.items()
+                           if k in ['mapper', 'registry', 'makeSkyMapOut']])
+
+            outputs = set()
             coaddTempExpId = dict(filter=filterName, visit=visit, **patchDataId)
-            logMakeCoaddTempExp = peg.File(
-                'logMakeCoaddTempExp.%(tract)d-%(patch)s-%(filter)s-%(visit)d' % coaddTempExpId)
-            dax.addFile(logMakeCoaddTempExp)
-            makeCoaddTempExp.setStderr(logMakeCoaddTempExp)
-            makeCoaddTempExp.uses(logMakeCoaddTempExp, link=peg.Link.OUTPUT)
+            f = getDataFile(mapper, 'deepCoadd_tempExp', coaddTempExpId,
+                            create=True)
+            outputs.add(f)
 
-            deepCoadd_tempExp = getDataFile(mapper, 'deepCoadd_tempExp', coaddTempExpId, create=True)
-            dax.addFile(deepCoadd_tempExp)
-            makeCoaddTempExp.uses(deepCoadd_tempExp, link=peg.Link.OUTPUT)
-            coaddTempExpList.append(deepCoadd_tempExp)
+            f = peg.File(
+                'logMakeCoaddTempExp'
+                '.%(tract)d-%(patch)s-%(filter)s-%(visit)d' % coaddTempExpId)
+            outputs.add(f)
+            task.setStderr(f)
 
-            dax.addJob(makeCoaddTempExp)
+            add_files = file_adder(task)
+            add_files(inputs, outputs)
+            dax.addJob(task)
 
+            catalog.update(inputs)
+            catalog.update(outputs)
+
+    for f in catalog:
+        dax.addFile(f)
     return dax
+
+
+def create_files(lfns, pfns=None):
+    """Creates file entries for DAX-level replica catalog.
+
+    Parameters
+    ----------
+    lfns : `dict`
+        Map between file handles and logical file names.
+    pfns : `dict`, optional
+        Map between file handles and physical file names. If supplied,
+        the function will associate a physical file name with each file.
+        Defaults to `None`.
+
+    Returns
+    -------
+    `dict`
+        Map between file handles and DAX-level file entries.
+    """
+    files = {handle: peg.File(name) for handle, name in lfns.items()}
+    if pfns is not None:
+        if set(lfns) != set(pfns):
+            raise ValueError('logical file name mapping differs from physical.')
+        for handle, entry in files.items():
+            entry.addPFN(peg.PFN(pfns[handle], site='local'))
+            entry.addPFN(peg.PFN(pfns[handle], site='lsstvc'))
+    return files
+
+
+def file_adder(task):
+    """Construct function allowing to add files to a task
+
+    Parameters
+    ----------
+    task : `Pegaus.Job`
+        Task to which files will be added.
+    """
+    def add_files(inputs, outputs):
+        for f in inputs:
+            task.uses(f, link=peg.Link.INPUT)
+        for f in outputs:
+            task.uses(f, link=peg.Link.OUTPUT)
+    return add_files
 
 
 if __name__ == '__main__':
