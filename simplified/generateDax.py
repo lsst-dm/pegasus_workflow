@@ -124,59 +124,63 @@ def generateDax(allData, extra, name='dax'):
 
     # Pipeline: processCcd
     for data in chain(*allData.values()):
-        logger.debug('processCcd dataId: %s', data.dataId)
+        name = 'processCcd'
 
-        task = peg.Job(name='processCcd')
-        task.addArguments(outPath, '--calib', outPath, '--output', outPath,
-                          '--doraise', data.id())
+        args = [
+            outPath, '--calib', outPath, '--output', outPath, '--doraise',
+            data.id()
+        ]
 
-        inputs = set()
+        ins = set()
         f = getDataFile(mapperInput, 'raw', data.dataId, create=True,
                         replaceRootPath=inputRepo)
-        inputs.add(f)
+        ins.add(f)
         for kind in ['bias', 'dark', 'flat', 'bfKernel']:
             f = getDataFile(mapperInput, kind, data.dataId, create=True,
                             replaceRootPath=calibRepo)
-            inputs.add(f)
-        inputs.update([v for k, v in cache.items()
-                       if k in ['mapper', 'registry', 'calibRegistry']])
+            ins.add(f)
+        ins.update([v for k, v in cache.items()
+                    if k in ['mapper', 'registry', 'calibRegistry']])
 
-        outputs = set()
+        outs = set()
         for kind in ['calexp', 'src']:
             f = getDataFile(mapper, kind, data.dataId, create=True)
-            outputs.add(f)
-        f = peg.File('logProcessCcd.%s' % data.name)
-        task.setStderr(f)
-        outputs.add(f)
+            outs.add(f)
 
-        add_files = file_adder(task)
-        add_files(inputs, outputs)
+        log = peg.File('log%s.%s' % (name.capitalize(), data.name))
+
+        task = create_task(name, args, ins, outs, log=log)
         dax.addJob(task)
 
-        catalog.update(inputs)
-        catalog.update(outputs)
+        catalog.update(ins)
+        catalog.update(outs)
+        catalog.add(log)
+
+        logger.debug('%s dataId: %s' % (name, data.dataId))
 
     # Pipeline: makeSkyMap
-    task = peg.Job(name='makeSkyMap')
-    task.addArguments(outPath, '--output', outPath,
-                      '-C', cache['makeSkyMapConf'], ' --doraise')
-    inputs = set([v for k, v in cache.items()
-                  if k in ['mapper', 'makeSkyMapConf']])
+    name = 'makeSkyMap'
 
-    outputs = set()
+    args = [
+        outPath, '--output', outPath, '-C', cache['makeSkyMapConf'], '--doraise'
+    ]
+
+    ins = set([v for k, v in cache.items()
+               if k in ['mapper', 'makeSkyMapConf']])
+
+    outs = set()
     f = getDataFile(mapper, 'deepCoadd_skyMap', {}, create=True)
-    outputs.add(f)
+    outs.add(f)
     cache['makeSkyMapOut'] = f
-    f = peg.File('logMakeSkyMap')
-    outputs.add(f)
-    task.setStderr(f)
 
-    add_files = file_adder(task)
-    add_files(inputs, outputs)
+    log = peg.File('log%s' % (name.capitalize()))
+
+    task = create_task(name, args, ins, outs, log=log)
     dax.addJob(task)
 
-    catalog.update(inputs)
-    catalog.update(outputs)
+    catalog.update(ins)
+    catalog.update(outs)
+    catalog.add(log)
 
     # Create 'exposures' as in ci_hsc/SConstruct processCoadds.
     allExposures = {filterName: defaultdict(list) for filterName in allData}
@@ -189,45 +193,44 @@ def generateDax(allData, extra, name='dax'):
     for filterName, visits in allExposures.items():
         ident = '--id ' + patchId + ' filter=' + filterName
         for visit, data in visits.items():
+            name = 'makeCoaddTempExp'
+
+            args = [
+                outPath, '--output', outPath, ' --doraise', '--no-versions',
+                ident, ' -c doApplyUberCal=False ',
+                ' '.join(rec.id('--selectId') for rec in data)
+            ]
+
+            ins = set()
+            for rec in data:
+                f = getDataFile(mapper, 'calexp', rec.dataId, create=True)
+                ins.add(f)
+            ins.update([v for k, v in cache.items()
+                        if k in ['mapper', 'registry', 'makeSkyMapOut']])
+
+            outs = set()
+            coaddTempExpId = dict(filter=filterName, visit=visit, **patchDataId)
+            f = getDataFile(mapper, 'deepCoadd_tempExp', coaddTempExpId,
+                            create=True)
+            outs.add(f)
+
+            log = peg.File(
+                'logMakeCoaddTempExp'
+                '.%(tract)d-%(patch)s-%(filter)s-%(visit)d' % coaddTempExpId)
+
+            task = create_task(name, args, ins, outs, log=log)
+            dax.addJob(task)
+
+            catalog.update(ins)
+            catalog.update(outs)
+            catalog.add(log)
+
             logger.debug(
                 'Adding makeCoaddTempExp %s %s %s %s %s %s %s',
                 outPath, '--output', outPath, ' --doraise', '--no-versions',
                 ident, ' -c doApplyUberCal=False ',
                 ' '.join(rec.id('--selectId') for rec in data)
             )
-
-            task = peg.Job(name='makeCoaddTempExp')
-            task.addArguments(
-                outPath, '--output', outPath, ' --doraise', '--no-versions',
-                ident, ' -c doApplyUberCal=False ',
-                ' '.join(rec.id('--selectId') for rec in data)
-            )
-
-            inputs = set()
-            for rec in data:
-                f = getDataFile(mapper, 'calexp', rec.dataId, create=True)
-                inputs.add(f)
-            inputs.update([v for k, v in cache.items()
-                           if k in ['mapper', 'registry', 'makeSkyMapOut']])
-
-            outputs = set()
-            coaddTempExpId = dict(filter=filterName, visit=visit, **patchDataId)
-            f = getDataFile(mapper, 'deepCoadd_tempExp', coaddTempExpId,
-                            create=True)
-            outputs.add(f)
-
-            f = peg.File(
-                'logMakeCoaddTempExp'
-                '.%(tract)d-%(patch)s-%(filter)s-%(visit)d' % coaddTempExpId)
-            outputs.add(f)
-            task.setStderr(f)
-
-            add_files = file_adder(task)
-            add_files(inputs, outputs)
-            dax.addJob(task)
-
-            catalog.update(inputs)
-            catalog.update(outputs)
 
     for f in catalog:
         dax.addFile(f)
@@ -261,20 +264,37 @@ def create_files(lfns, pfns=None):
     return files
 
 
-def file_adder(task):
-    """Construct function allowing to add files to a task
+def create_task(name, args, inputs, outputs, log=None):
+    """Creates a fully-fledged Pegasus job.
 
     Parameters
     ----------
-    task : `Pegaus.Job`
-        Task to which files will be added.
+    name : `str`
+        The LSST task name.
+    args : `list`
+        List of task arguments.
+    inputs : iterable of Pegasus.File
+        Sequence of task's input files.
+    inputs : iterable of Pegasus.File
+        Sequence of task's output files.
+    log : Pegasus.File, optional
+        File to which task standard error will be redirected.
+
+    Returns
+    -------
+    `Pegasus.Job`
+        Resource loaded job.
     """
-    def add_files(inputs, outputs):
-        for f in inputs:
-            task.uses(f, link=peg.Link.INPUT)
-        for f in outputs:
-            task.uses(f, link=peg.Link.OUTPUT)
-    return add_files
+    task = peg.Job(name=name)
+    task.addArguments(*args)
+    for f in inputs:
+        task.uses(f, link=peg.Link.INPUT)
+    for f in outputs:
+        task.uses(f, link=peg.Link.OUTPUT)
+    if log is not None:
+        task.setStderr(log)
+        task.uses(log)
+    return task
 
 
 if __name__ == '__main__':
