@@ -189,17 +189,17 @@ def generateDax(allData, extra, name='dax'):
             allExposures[filterName][data.visit].append(data)
 
     # Pipeline: makeCoaddTempExp per visit per filter
-    patchId = ' '.join(('%s=%s' % (k, v) for k, v in extra.iteritems()))
+    patchId = ['--id']
+    patchId.extend('%s=%s' % (k, v) for k, v in extra.iteritems())
     for filterName, visits in allExposures.items():
-        ident = '--id ' + patchId + ' filter=' + filterName
+        ident = patchId + ['filter=' + filterName]
         for visit, data in visits.items():
             name = 'makeCoaddTempExp'
 
-            args = [
-                outPath, '--output', outPath, ' --doraise', '--no-versions',
-                ident, ' -c doApplyUberCal=False ',
-                ' '.join(rec.id('--selectId') for rec in data)
-            ]
+            args = [outPath, '--output', outPath, '--doraise', '--no-versions',
+                    '-c', 'doApplyUberCal=False']
+            args.extend(ident)
+            args.extend(rec.id('--selectId') for rec in data)
 
             ins = set()
             for rec in data:
