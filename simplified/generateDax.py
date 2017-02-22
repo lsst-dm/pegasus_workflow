@@ -11,6 +11,7 @@ import lsst.utils
 from lsst.obs.hsc.hscMapper import HscMapper
 
 from data import Data
+from pathogen import Pathogen
 
 logger = lsst.log.Log.getLogger('workflow')
 logger.setLevel(lsst.log.INFO)
@@ -25,49 +26,6 @@ logger.debug('outPath: %s', outPath)
 # Assuming ci_hsc has been run beforehand and the data repo has been created
 ciHscDir = lsst.utils.getPackageDir('ci_hsc')
 inputRepo = os.path.join(ciHscDir, 'DATA')
-calibRepo = os.path.join(inputRepo, 'CALIB')
-
-
-def getDataFile(mapper, datasetType, dataId, create=False, replaceRootPath=None):
-    """Get the Pegasus File entry given Butler datasetType and dataId.
-
-    Retrieve the file name/path through a CameraMapper instance
-    Optionally tweak the path to a better LFN using replaceRootPath
-    Optionally create new Pegasus File entries
-
-    Parameters
-    ----------
-    mapper: lsst.obs.base.CameraMapper
-        A specific CameraMapper instance for getting the name and locating
-        the file in a Butler repo.
-    datasetType: `str`
-        Butler dataset type
-    dataId: `dict`
-        Butler data ID
-    create: `bool`, optional
-        If True, create a new Pegasus File entry if it does not exist yet.
-    replaceRootPath: `str`, optional
-        Replace the given root path with the global outPath.
-
-    Returns
-    -------
-    fileEntry:
-        A Pegasus File entry or a LFN corresponding to an entry
-    """
-    mapFunc = getattr(mapper, 'map_' + datasetType)
-    fileEntry = lfn = filePath = mapFunc(dataId).getLocations()[0]
-
-    if replaceRootPath is not None:
-        lfn = filePath.replace(replaceRootPath, outPath)
-
-    if create:
-        fileEntry = peg.File(lfn)
-        if not filePath.startswith(outPath):
-            fileEntry.addPFN(peg.PFN(filePath, site='local'))
-            fileEntry.addPFN(peg.PFN(filePath, site='lsstvc'))
-        logger.debug('%s %s: %s -> %s', datasetType, dataId, filePath, lfn)
-
-    return fileEntry
 
 
 def generateDax(allData, extra, name='dax'):
@@ -94,9 +52,8 @@ def generateDax(allData, extra, name='dax'):
     else:
         dax = AutoADAG(name)
 
-    # Construct these mappers only for creating dax, not for actual runs.
-    mapperInput = HscMapper(root=inputRepo)
-    mapper = HscMapper(root=inputRepo, outputRoot=outPath)
+    # Initialize path generator.
+    pathogen = Pathogen(HscMapper, root=inputRepo, output=outPath)
 
     # A cache with frequently used files.
     cache = {}
@@ -109,7 +66,7 @@ def generateDax(allData, extra, name='dax'):
     }
     lfns = {k: os.path.join(outPath, v) for k, v in components.items()}
     pfns = {k: os.path.join(inputRepo, v) for k, v in components.items()}
-    cache.update(create_files(lfns, pfns))
+    cache.update(create_cache(lfns, pfns))
 
     # Add task configuration files to the cache.
     path = os.path.dirname(os.path.realpath(__file__))
@@ -117,7 +74,7 @@ def generateDax(allData, extra, name='dax'):
         'makeSkyMapConf': 'skymapConfig.py'
     }
     pfns = {k: os.path.join(path, v) for k, v in lfns.items()}
-    cache.update(create_files(lfns, pfns))
+    cache.update(create_cache(lfns, pfns))
 
     # The replica catalog containing all DAX-level files.
     catalog = set()
@@ -132,19 +89,17 @@ def generateDax(allData, extra, name='dax'):
         ]
 
         ins = set()
-        f = getDataFile(mapperInput, 'raw', data.dataId, create=True,
-                        replaceRootPath=inputRepo)
-        ins.add(f)
-        for kind in ['bias', 'dark', 'flat', 'bfKernel']:
-            f = getDataFile(mapperInput, kind, data.dataId, create=True,
-                            replaceRootPath=calibRepo)
+        for kind in ['raw', 'bias', 'dark', 'flat', 'bfKernel']:
+            lfn, pfn = pathogen.get(kind, data.dataId)
+            f = create_file(lfn, pfn)
             ins.add(f)
         ins.update([v for k, v in cache.items()
                     if k in ['mapper', 'registry', 'calibRegistry']])
 
         outs = set()
         for kind in ['calexp', 'src']:
-            f = getDataFile(mapper, kind, data.dataId, create=True)
+            lfn, pfn = pathogen.get(kind, data.dataId)
+            f = create_file(lfn, pfn)
             outs.add(f)
 
         log = peg.File('log%s.%s' % (name.capitalize(), data.name))
@@ -169,7 +124,8 @@ def generateDax(allData, extra, name='dax'):
                if k in ['mapper', 'makeSkyMapConf']])
 
     outs = set()
-    f = getDataFile(mapper, 'deepCoadd_skyMap', {}, create=True)
+    lfn, pfn = pathogen.get('deepCoadd_skyMap', {})
+    f = create_file(lfn, pfn)
     outs.add(f)
     cache['makeSkyMapOut'] = f
 
@@ -203,15 +159,16 @@ def generateDax(allData, extra, name='dax'):
 
             ins = set()
             for rec in data:
-                f = getDataFile(mapper, 'calexp', rec.dataId, create=True)
+                lfn, pfn = pathogen.get('calexp', rec.dataId)
+                f = create_file(lfn, pfn)
                 ins.add(f)
             ins.update([v for k, v in cache.items()
                         if k in ['mapper', 'registry', 'makeSkyMapOut']])
 
             outs = set()
             coaddTempExpId = dict(filter=filterName, visit=visit, **patchDataId)
-            f = getDataFile(mapper, 'deepCoadd_tempExp', coaddTempExpId,
-                            create=True)
+            lfn, pfn = pathogen.get('deepCoadd_tempExp', coaddTempExpId)
+            f = create_file(lfn, pfn)
             outs.add(f)
 
             log = peg.File(
@@ -237,8 +194,8 @@ def generateDax(allData, extra, name='dax'):
     return dax
 
 
-def create_files(lfns, pfns=None):
-    """Creates file entries for DAX-level replica catalog.
+def create_cache(lfns, pfns=None):
+    """Creates a cache of file entries for DAX-level replica catalog.
 
     Parameters
     ----------
@@ -254,14 +211,33 @@ def create_files(lfns, pfns=None):
     `dict`
         Map between file handles and DAX-level file entries.
     """
-    files = {handle: peg.File(name) for handle, name in lfns.items()}
-    if pfns is not None:
-        if set(lfns) != set(pfns):
-            raise ValueError('logical file name mapping differs from physical.')
-        for handle, entry in files.items():
-            entry.addPFN(peg.PFN(pfns[handle], site='local'))
-            entry.addPFN(peg.PFN(pfns[handle], site='lsstvc'))
-    return files
+    if pfns is None:
+        pfns = {k: None for k in lfns}
+    if set(lfns) != set(pfns):
+        raise ValueError('logical file name mapping differs from physical.')
+    return {k: create_file(lfns[k], pfns[k]) for k in lfns}
+
+
+def create_file(lfn, pfn=None):
+    """Creates Pegasus file entry.
+
+    Parameters
+    ----------
+    lfn : `str`
+        Logical file name.
+    pfn : `str`, optional
+        Physical file name.
+
+    Returns
+    -------
+    pegusus.File
+        DAX-level file entry.
+    """
+    f = peg.File(lfn)
+    if pfn is not None:
+        f.addPFN(peg.PFN(pfn, site='local'))
+        f.addPFN(peg.PFN(pfn, site='lsstvc'))
+    return f
 
 
 def create_task(name, args, inputs, outputs, log=None):
