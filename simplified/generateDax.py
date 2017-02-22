@@ -102,7 +102,7 @@ def generateDax(allData, extra, name='dax'):
             f = create_file(lfn, pfn)
             outs.add(f)
 
-        log = peg.File('log%s.%s' % (name.capitalize(), data.name))
+        log = peg.File('log%s.%s' % (name[0].upper() + name[1:], data.name))
 
         task = create_task(name, args, ins, outs, log=log)
         dax.addJob(task)
@@ -129,7 +129,7 @@ def generateDax(allData, extra, name='dax'):
     outs.add(f)
     cache['makeSkyMapOut'] = f
 
-    log = peg.File('log%s' % (name.capitalize()))
+    log = peg.File('log%s' % (name[0].upper() + name[1:]))
 
     task = create_task(name, args, ins, outs, log=log)
     dax.addJob(task)
