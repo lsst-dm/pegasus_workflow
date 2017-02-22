@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import argparse
+import jinja2 as jinja
 import os
 import Pegasus.DAX3 as peg
 import yaml
@@ -271,6 +272,32 @@ def create_task(name, args, inputs, outputs, log=None):
         task.setStderr(log)
         task.uses(log)
     return task
+
+
+def create_conf(name, args, in_path, out_path,
+                tmpl_path='templates', tmpl_name='exec', filename='task.json'):
+    """Creates Executor's configuration file for a given task.
+
+    Parameters
+    ----------
+    name : `str`
+        Name of the task.
+    args : `list` of `str`
+        Task's command line arguments.
+    in_path : `str`
+        Root of the input dataset repository.
+    out_path : `str`
+        Root of the output dataset repository.
+    tmpl_path : `str`, optional
+        Path to directory with Jinja templates, defaults to 'templates'.
+    tmpl_name : `str`, optional
+        Name of the Jinja template to use, defaults to 'exec'
+    """
+    env = jinja.Environment(loader=jinja.FileSystemLoader(tmpl_path))
+    tmpl = env.get(tmpl_name + '.jinja')
+    s = tmpl.render(name=name, args=args, in_path=in_path, out_path=out_path)
+    with open(filename, 'w') as f:
+        f.write(s)
 
 
 if __name__ == '__main__':
