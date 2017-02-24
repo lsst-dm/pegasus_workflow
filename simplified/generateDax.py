@@ -166,7 +166,7 @@ def generateDax(allData, extra, name='dax'):
                         if k in ['mapper', 'registry', 'makeSkyMapOut']])
 
             outs = set()
-            coaddTempExpId = dict(filter=filterName, visit=visit, **patchDataId)
+            coaddTempExpId = dict(filter=filterName, visit=visit, **extra)
             lfn, pfn = pathogen.get('deepCoadd_tempExp', coaddTempExpId)
             f = create_file(lfn, pfn)
             outs.add(f)
