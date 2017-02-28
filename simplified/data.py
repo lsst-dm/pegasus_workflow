@@ -40,10 +40,10 @@ class Data(Struct):
 
         Returns
         -------
-        `str`
-            A string representing a valid command line arguments.
+        `list` of `str`
+            A list representing a valid data id.
         """
         r = '%s visit=%d ccd=%d' % (prefix, self.visit, self.ccd)
         if tract is not None:
             r += ' tract=%d' % tract
-        return r
+        return r.split()
