@@ -12,6 +12,7 @@ from lsst.obs.hsc.hscMapper import HscMapper
 
 from data import Data
 from pathogen import Pathogen
+from cowriter import Cowriter
 
 logger = lsst.log.Log.getLogger('workflow')
 logger.setLevel(lsst.log.INFO)
@@ -55,6 +56,9 @@ def generateDax(allData, extra, name='dax'):
     # Initialize path generator.
     pathogen = Pathogen(HscMapper, root=inputRepo, output=outPath)
 
+    # Initialize generator of Executor's configuration files.
+    cowriter = Cowriter('executor')
+
     # A cache with frequently used files.
     cache = {}
 
@@ -83,10 +87,8 @@ def generateDax(allData, extra, name='dax'):
     for data in chain(*allData.values()):
         name = 'processCcd'
 
-        args = [
-            outPath, '--calib', outPath, '--output', outPath, '--doraise',
-            data.id()
-        ]
+        args = ['--calib', outPath, '--doraise']
+        args.extend(data.id())
 
         ins = set()
         for kind in ['raw', 'bias', 'dark', 'flat', 'bfKernel']:
@@ -96,6 +98,10 @@ def generateDax(allData, extra, name='dax'):
         ins.update([v for k, v in cache.items()
                     if k in ['mapper', 'registry', 'calibRegistry']])
 
+        lfn = cowriter.write(name, to_str(args), outPath, outPath)
+        config = create_file(lfn, os.path.abspath(lfn))
+        ins.add(config)
+
         outs = set()
         for kind in ['calexp', 'src']:
             lfn, pfn = pathogen.get(kind, data.dataId)
@@ -104,7 +110,7 @@ def generateDax(allData, extra, name='dax'):
 
         log = peg.File('log%s.%s' % (name[0].upper() + name[1:], data.name))
 
-        task = create_task(name, args, ins, outs, log=log)
+        task = create_task('execute', config, ins, outs, log=log)
         dax.addJob(task)
 
         catalog.update(ins)
@@ -116,12 +122,14 @@ def generateDax(allData, extra, name='dax'):
     # Pipeline: makeSkyMap
     name = 'makeSkyMap'
 
-    args = [
-        outPath, '--output', outPath, '-C', cache['makeSkyMapConf'], '--doraise'
-    ]
+    args = ['-C', cache['makeSkyMapConf'], '--doraise']
 
     ins = set([v for k, v in cache.items()
                if k in ['mapper', 'makeSkyMapConf']])
+
+    lfn = cowriter.write(name, to_str(args), outPath, outPath)
+    config = create_file(lfn, os.path.abspath(lfn))
+    ins.add(config)
 
     outs = set()
     lfn, pfn = pathogen.get('deepCoadd_skyMap', {})
@@ -131,7 +139,7 @@ def generateDax(allData, extra, name='dax'):
 
     log = peg.File('log%s' % (name[0].upper() + name[1:]))
 
-    task = create_task(name, args, ins, outs, log=log)
+    task = create_task('execute', config, ins, outs, log=log)
     dax.addJob(task)
 
     catalog.update(ins)
@@ -152,10 +160,9 @@ def generateDax(allData, extra, name='dax'):
         for visit, data in visits.items():
             name = 'makeCoaddTempExp'
 
-            args = [outPath, '--output', outPath, '--doraise', '--no-versions',
-                    '-c', 'doApplyUberCal=False']
+            args = ['--doraise', '--no-versions', '-c', 'doApplyUberCal=False']
             args.extend(ident)
-            args.extend(rec.id('--selectId') for rec in data)
+            args.extend(s for rec in data for s in rec.id('--selectId'))
 
             ins = set()
             for rec in data:
@@ -164,6 +171,10 @@ def generateDax(allData, extra, name='dax'):
                 ins.add(f)
             ins.update([v for k, v in cache.items()
                         if k in ['mapper', 'registry', 'makeSkyMapOut']])
+
+            lfn = cowriter.write(name, to_str(args), outPath, outPath)
+            config = create_file(lfn, os.path.abspath(lfn))
+            ins.add(config)
 
             outs = set()
             coaddTempExpId = dict(filter=filterName, visit=visit, **extra)
@@ -175,7 +186,7 @@ def generateDax(allData, extra, name='dax'):
                 'logMakeCoaddTempExp'
                 '.%(tract)d-%(patch)s-%(filter)s-%(visit)d' % coaddTempExpId)
 
-            task = create_task(name, args, ins, outs, log=log)
+            task = create_task('execute', config, ins, outs, log=log)
             dax.addJob(task)
 
             catalog.update(ins)
@@ -186,7 +197,7 @@ def generateDax(allData, extra, name='dax'):
                 'Adding makeCoaddTempExp %s %s %s %s %s %s %s',
                 outPath, '--output', outPath, ' --doraise', '--no-versions',
                 ident, ' -c doApplyUberCal=False ',
-                ' '.join(rec.id('--selectId') for rec in data)
+                ' '.join(s for rec in data for s in rec.id('--selectId'))
             )
 
     for f in catalog:
@@ -262,6 +273,8 @@ def create_task(name, args, inputs, outputs, log=None):
         Resource loaded job.
     """
     task = peg.Job(name=name)
+    if not isinstance(args, list):
+        args = [args]
     task.addArguments(*args)
     for f in inputs:
         task.uses(f, link=peg.Link.INPUT)
@@ -271,6 +284,29 @@ def create_task(name, args, inputs, outputs, log=None):
         task.setStderr(log)
         task.uses(log)
     return task
+
+
+def to_str(args):
+    """Creates a string representation of Job arguments.
+
+    Arguments of a Pegasus Job may contain File objects. As Executor knows
+    nothing about Pegasus and its Files, they must be replaced with the
+    corresponding logical filename.
+
+    Parameters
+    ----------
+    args : `list`
+        List of arguments for a Pegaus Job.
+
+    Returns
+    -------
+    `list` of `str`
+        List of string representation of the arguemnts.
+    """
+    indices = [i for i, a in enumerate(args) if isinstance(a, peg.File)]
+    for i in indices:
+        args[i] = args[i].name
+    return args
 
 
 if __name__ == '__main__':
