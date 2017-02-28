@@ -273,6 +273,7 @@ def generateDax(name="dax"):
         for visit in allExposures[filterName]:
             makeCoaddTempExp = peg.Job(name="makeCoaddTempExp")
             makeCoaddTempExp.uses(mapperFile, link=peg.Link.INPUT)
+            makeCoaddTempExp.uses(registry, link=peg.Link.INPUT)
             makeCoaddTempExp.uses(skyMap, link=peg.Link.INPUT)
             for data in allExposures[filterName][visit]:
                 calexp = getDataFile(mapper, "calexp", data.dataId, create=False)
@@ -527,12 +528,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate a DAX")
     parser.add_argument("-i", "--inputData", default="ciHsc/inputData.py",
                         help="a file including input data information")
+    parser.add_argument("-o", "--outputFile", type=str, default="ciHsc.dax",
+                        help="file name for the output dax xml")
     args = parser.parse_args()
     with open(args.inputData) as f:
         data = compile(f.read(), args.inputData, 'exec')
         exec(data)
 
     dax = generateDax("CiHscDax")
-    f = open("ciHsc.dax", "w")
-    dax.writeXML(f)
-    f.close()
+    with open(args.outputFile, "w") as f:
+        dax.writeXML(f)
