@@ -10,6 +10,11 @@ class Cowriter:
         Name of the Jinja template to use, defaults to 'exec'
     path : `str`, optional
         Path to directory with Jinja templates, defaults to 'templates'.
+
+    Returns
+    -------
+    `str`
+        Name of the file configuration was written to.
     """
 
     # Counts task.
@@ -17,7 +22,7 @@ class Cowriter:
 
     def __init__(self, name, path='templates'):
         self.env = jinja.Environment(loader=jinja.FileSystemLoader(path))
-        self.tmpl = self.env.get(name + '.jinja')
+        self.tmpl = self.env.get_template(name + '.jinja')
 
     def write(self, name, args, in_path, out_path):
         """Writes Executor's configuration to a uniquely named file.
@@ -40,3 +45,4 @@ class Cowriter:
         self.__class__.counter[name] += 1
         with open(filename, 'w') as f:
             f.write(s)
+        return filename
