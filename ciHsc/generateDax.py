@@ -175,7 +175,7 @@ def generateDax(name="dax"):
         dax = AutoADAG(name)
 
     # Construct these mappers only for creating dax, not for actual runs.
-    mapperInput = HscMapper(root=inputRepo)
+    mapperInput = HscMapper(root=inputRepo, calibRoot=calibRepo)
     mapper = HscMapper(root=inputRepo, outputRoot=outPath)
 
     # Get the following butler or config files directly from ci_hsc package
