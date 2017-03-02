@@ -5,6 +5,7 @@ import Pegasus.DAX3 as peg
 
 import lsst.log
 import lsst.utils
+from lsst.utils import getPackageDir
 from lsst.obs.hsc.hscMapper import HscMapper
 
 logger = lsst.log.Log.getLogger("workflow")
@@ -99,6 +100,12 @@ def generateProcessCcdDax(name="dax", visits=None, ccdList=None):
     calibRegistry.addPFN(peg.PFN(filePathCalibRegistry, site="lsstvc"))
     dax.addFile(calibRegistry)
 
+    configFile = os.path.join(getPackageDir("obs_subaru"), "config", "hsc", "isr.py")
+    fringeFilters = []
+    with open(configFile, 'r') as f:
+        if "fringe.filters" in f.readline():
+            fringeFilters = eval(f.split("=")[-1])
+
     # Pipeline: processCcd
     for visit in visits:
         for ccd in ccdList:
@@ -106,7 +113,7 @@ def generateProcessCcdDax(name="dax", visits=None, ccdList=None):
             logger.debug("processCcd dataId: %s", dataId)
 
             processCcd = peg.Job(name="processCcd")
-            processCcd.addArguments(outPath, "--calib", outPath, "--output", outPath, "--config isr.doFringe=False",
+            processCcd.addArguments(outPath, "--calib", outPath, "--output", outPath,
                                     " --doraise --id visit={visit} ccd={ccd}".format(**dataId))
             processCcd.uses(registry, link=peg.Link.INPUT)
             processCcd.uses(calibRegistry, link=peg.Link.INPUT)
@@ -117,6 +124,14 @@ def generateProcessCcdDax(name="dax", visits=None, ccdList=None):
             processCcd.uses(inFile, link=peg.Link.INPUT)
             for inputType in ["bias", "dark", "flat", "bfKernel"]:
                 inFile = getDataFile(mapperInput, inputType, dataId, 
+                                     create=True, replaceRootPath=calibRepo)
+                if not dax.hasFile(inFile):
+                    dax.addFile(inFile)
+                processCcd.uses(inFile, link=peg.Link.INPUT)
+
+            filterName = mapperInput.queryMetadata(datasetType="raw", format=("filter",), dataId={'visit':visit})[0][0]
+            if filterName in fringeFilters:
+                inFile = getDataFile(mapperInput, "fringe", dataId,
                                      create=True, replaceRootPath=calibRepo)
                 if not dax.hasFile(inFile):
                     dax.addFile(inFile)
