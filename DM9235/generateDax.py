@@ -106,7 +106,7 @@ def generateProcessCcdDax(name="dax", visits=None, ccdList=None):
             logger.debug("processCcd dataId: %s", dataId)
 
             processCcd = peg.Job(name="processCcd")
-            processCcd.addArguments(outPath, "--calib", outPath, "--output", outPath,
+            processCcd.addArguments(outPath, "--calib", outPath, "--output", outPath, "--config isr.doFringe=False",
                                     " --doraise --id visit={visit} ccd={ccd}".format(**dataId))
             processCcd.uses(registry, link=peg.Link.INPUT)
             processCcd.uses(calibRegistry, link=peg.Link.INPUT)
