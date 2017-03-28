@@ -23,11 +23,11 @@ inputRepo = os.path.join(ciHscDir, "DATA")
 calibRepo = os.path.join(inputRepo, "CALIB")
 
 
-def getDataFile(mapper, datasetType, dataId, create=False, replaceRootPath=None):
+def getDataFile(mapper, datasetType, dataId, create=False, repoRoot=None):
     """Get the Pegasus File entry given Butler datasetType and dataId.
 
     Retrieve the file name/path through a CameraMapper instance
-    Optionally tweak the path to a better LFN using replaceRootPath
+        and prepend outPath to it
     Optionally create new Pegasus File entries
 
     Parameters
@@ -45,8 +45,8 @@ def getDataFile(mapper, datasetType, dataId, create=False, replaceRootPath=None)
     create: `bool`, optional
         If True, create a new Pegasus File entry if it does not exist yet.
 
-    replaceRootPath: `str`, optional
-        Replace the given root path with the global outPath.
+    repoRoot: `str`, optional
+        Prepend butler repo root path for the PFN of the input files
 
     Returns
     -------
@@ -54,17 +54,16 @@ def getDataFile(mapper, datasetType, dataId, create=False, replaceRootPath=None)
         A Pegasus File entry or a LFN corresponding to an entry
     """
     mapFunc = getattr(mapper, "map_" + datasetType)
-    fileEntry = lfn = filePath = mapFunc(dataId).getLocations()[0]
-
-    if replaceRootPath is not None:
-        lfn = filePath.replace(replaceRootPath, outPath)
+    butlerPath = mapFunc(dataId).getLocations()[0]
+    fileEntry = lfn = os.path.join(outPath, butlerPath)
 
     if create:
         fileEntry = peg.File(lfn)
-        if not filePath.startswith(outPath):
+        if repoRoot is not None:
+            filePath = os.path.join(repoRoot, butlerPath)
             fileEntry.addPFN(peg.PFN(filePath, site="local"))
             fileEntry.addPFN(peg.PFN(filePath, site="lsstvc"))
-        logger.debug("%s %s: %s -> %s", datasetType, dataId, filePath, lfn)
+            logger.info("%s %s: %s -> %s", datasetType, dataId, filePath, lfn)
 
     return fileEntry
 
@@ -81,7 +80,7 @@ def preruns(dax):
     dax: Pegasus.DAX3.ADAG
         Add pre-run tasks and schema files to this dax
     """
-    mapper = HscMapper(root=inputRepo, outputRoot=outPath)
+    mapper = HscMapper(root=inputRepo, calibRoot=calibRepo)
     mapperFile = peg.File(os.path.join(outPath, "_mapper"))
 
     # Pipeline: processCcd
@@ -175,8 +174,7 @@ def generateDax(name="dax"):
         dax = AutoADAG(name)
 
     # Construct these mappers only for creating dax, not for actual runs.
-    mapperInput = HscMapper(root=inputRepo, calibRoot=calibRepo)
-    mapper = HscMapper(root=inputRepo, outputRoot=outPath)
+    mapper = HscMapper(root=inputRepo, calibRoot=calibRepo)
 
     # Get the following butler or config files directly from ci_hsc package
     filePathMapper = os.path.join(inputRepo, "_mapper")
@@ -226,12 +224,12 @@ def generateDax(name="dax"):
             inFile = getDataFile(mapper, inputType, {}, create=False)
             processCcd.uses(inFile, link=peg.Link.INPUT)
 
-        inFile = getDataFile(mapperInput, "raw", data.dataId, create=True, replaceRootPath=inputRepo)
+        inFile = getDataFile(mapper, "raw", data.dataId, create=True, repoRoot=inputRepo)
         dax.addFile(inFile)
         processCcd.uses(inFile, link=peg.Link.INPUT)
         for inputType in ["bias", "dark", "flat", "bfKernel"]:
-            inFile = getDataFile(mapperInput, inputType, data.dataId,
-                                 create=True, replaceRootPath=calibRepo)
+            inFile = getDataFile(mapper, inputType, data.dataId,
+                                 create=True, repoRoot=calibRepo)
             if not dax.hasFile(inFile):
                 dax.addFile(inFile)
             processCcd.uses(inFile, link=peg.Link.INPUT)
