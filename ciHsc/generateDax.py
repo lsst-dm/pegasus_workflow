@@ -423,7 +423,7 @@ def generateDax(name="dax"):
 
         inFile = getDataFile(mapper, "deepCoadd_meas_schema", {}, create=False)
         measureCoaddSources.uses(inFile, link=peg.Link.INPUT)
-        for outputType in ["deepCoadd_meas", "deepCoadd_srcMatch"]:
+        for outputType in ["deepCoadd_meas", "deepCoadd_measMatch"]:
             outFile = getDataFile(mapper, outputType, coaddId, create=True)
             dax.addFile(outFile)
             measureCoaddSources.uses(outFile, link=peg.Link.OUTPUT)
