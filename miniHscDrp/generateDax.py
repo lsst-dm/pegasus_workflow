@@ -21,13 +21,15 @@ logger.debug("outPath: %s", outPath)
 ciHscDir = lsst.utils.getPackageDir('ci_hsc')
 inputRepo = os.path.join(ciHscDir, "DATA")
 calibRepo = os.path.join(inputRepo, "CALIB")
+# This is a config of LoadIndexedReferenceObjectsTask ref_dataset_name
+refcatName = "ps1_pv3_3pi_20170110"
 
 
-def getDataFile(mapper, datasetType, dataId, create=False, replaceRootPath=None):
+def getDataFile(mapper, datasetType, dataId, create=False, repoRoot=None):
     """Get the Pegasus File entry given Butler datasetType and dataId.
 
     Retrieve the file name/path through a CameraMapper instance
-    Optionally tweak the path to a better LFN using replaceRootPath
+        and prepend outPath to it
     Optionally create new Pegasus File entries
 
     Parameters
@@ -45,8 +47,8 @@ def getDataFile(mapper, datasetType, dataId, create=False, replaceRootPath=None)
     create: `bool`, optional
         If True, create a new Pegasus File entry if it does not exist yet.
 
-    replaceRootPath: `str`, optional
-        Replace the given root path with the global outPath.
+    repoRoot: `str`, optional
+        Prepend butler repo root path for the PFN of the input files
 
     Returns
     -------
@@ -54,17 +56,16 @@ def getDataFile(mapper, datasetType, dataId, create=False, replaceRootPath=None)
         A Pegasus File entry or a LFN corresponding to an entry
     """
     mapFunc = getattr(mapper, "map_" + datasetType)
-    fileEntry = lfn = filePath = mapFunc(dataId).getLocations()[0]
-
-    if replaceRootPath is not None:
-        lfn = filePath.replace(replaceRootPath, outPath)
+    butlerPath = mapFunc(dataId).getLocations()[0]
+    fileEntry = lfn = os.path.join(outPath, butlerPath)
 
     if create:
         fileEntry = peg.File(lfn)
-        if not filePath.startswith(outPath):
+        if repoRoot is not None:
+            filePath = os.path.join(repoRoot, butlerPath)
             fileEntry.addPFN(peg.PFN(filePath, site="local"))
             fileEntry.addPFN(peg.PFN(filePath, site="lsstvc"))
-        logger.debug("%s %s: %s -> %s", datasetType, dataId, filePath, lfn)
+            logger.info("%s %s: %s -> %s", datasetType, dataId, filePath, lfn)
 
     return fileEntry
 
@@ -81,12 +82,14 @@ def preruns(dax):
     dax: Pegasus.DAX3.ADAG
         Add pre-run tasks and schema files to this dax
     """
-    mapper = HscMapper(root=inputRepo, outputRoot=outPath)
+    mapper = HscMapper(root=inputRepo, calibRoot=calibRepo)
     mapperFile = peg.File(os.path.join(outPath, "_mapper"))
+    refCatConfigFile = getDataFile(mapper, "ref_cat_config", {"name": refcatName}, create=False)
 
     # Pipeline: processCcd
     preProcessCcd = peg.Job(name="processCcd")
     preProcessCcd.uses(mapperFile, link=peg.Link.INPUT)
+    preProcessCcd.uses(refCatConfigFile, link=peg.Link.INPUT)
     preProcessCcd.addArguments(outPath, "--output", outPath, " --doraise")
     for schema in ["icSrc_schema", "src_schema"]:
         outFile = getDataFile(mapper, schema, {}, create=True)
@@ -175,8 +178,7 @@ def generateDax(name="dax"):
         dax = AutoADAG(name)
 
     # Construct these mappers only for creating dax, not for actual runs.
-    mapperInput = HscMapper(root=inputRepo, calibRoot=calibRepo)
-    mapper = HscMapper(root=inputRepo, outputRoot=outPath)
+    mapper = HscMapper(root=inputRepo, calibRoot=calibRepo)
 
     # Get the following butler files directly from ci_hsc package
     filePathMapper = os.path.join(inputRepo, "_mapper")
@@ -210,6 +212,22 @@ def generateDax(name="dax"):
     forcedPhotCcdConfig.addPFN(peg.PFN(filePath, site="lsstvc"))
     dax.addFile(forcedPhotCcdConfig)
 
+    # Add all files in ref_cats
+    refCatConfigFile = getDataFile(mapper, "ref_cat_config", {"name": refcatName}, create=True, repoRoot=inputRepo)
+    dax.addFile(refCatConfigFile)
+    # Assume any task needing ref_cat will use both of the two fits
+    refCatFile1 = getDataFile(mapper, "ref_cat", {"name": refcatName, "pixel_id": 189584}, create=True, repoRoot=inputRepo)
+    dax.addFile(refCatFile1)
+    refCatFile2 = getDataFile(mapper, "ref_cat", {"name": refcatName, "pixel_id": 189648}, create=True, repoRoot=inputRepo)
+    dax.addFile(refCatFile2)
+
+    refCatSchema = "ref_cats/ps1_pv3_3pi_20170110/master_schema.fits"
+    filePath = os.path.join(inputRepo, refCatSchema)
+    refCatSchemaFile = peg.File(os.path.join(outPath, refCatSchema))
+    refCatSchemaFile.addPFN(peg.PFN(filePath, site="local"))
+    refCatSchemaFile.addPFN(peg.PFN(filePath, site="lsstvc"))
+    dax.addFile(refCatSchemaFile)
+
     preruns(dax)
     # Pipeline: processCcd
     tasksProcessCcdList = []
@@ -227,12 +245,17 @@ def generateDax(name="dax"):
             inFile = getDataFile(mapper, inputType, {}, create=False)
             processCcd.uses(inFile, link=peg.Link.INPUT)
 
-        inFile = getDataFile(mapperInput, "raw", data.dataId, create=True, replaceRootPath=inputRepo)
+        processCcd.uses(refCatConfigFile, link=peg.Link.INPUT)
+        processCcd.uses(refCatFile1, link=peg.Link.INPUT)
+        processCcd.uses(refCatFile2, link=peg.Link.INPUT)
+        processCcd.uses(refCatSchemaFile, link=peg.Link.INPUT)
+
+        inFile = getDataFile(mapper, "raw", data.dataId, create=True, repoRoot=inputRepo)
         dax.addFile(inFile)
         processCcd.uses(inFile, link=peg.Link.INPUT)
         for inputType in ["bias", "dark", "flat", "bfKernel"]:
-            inFile = getDataFile(mapperInput, inputType, data.dataId,
-                                 create=True, replaceRootPath=calibRepo)
+            inFile = getDataFile(mapper, inputType, data.dataId,
+                                 create=True, repoRoot=calibRepo)
             if not dax.hasFile(inFile):
                 dax.addFile(inFile)
             processCcd.uses(inFile, link=peg.Link.INPUT)
@@ -405,6 +428,10 @@ def generateDax(name="dax"):
             measureCoaddSources = peg.Job(name="measureCoaddSources")
             measureCoaddSources.uses(mapperFile, link=peg.Link.INPUT)
             measureCoaddSources.uses(registry, link=peg.Link.INPUT)
+            measureCoaddSources.uses(refCatConfigFile, link=peg.Link.INPUT)
+            measureCoaddSources.uses(refCatFile1, link=peg.Link.INPUT)
+            measureCoaddSources.uses(refCatFile2, link=peg.Link.INPUT)
+            measureCoaddSources.uses(refCatSchemaFile, link=peg.Link.INPUT)
             measureCoaddSources.uses(skyMap, link=peg.Link.INPUT)
             for inputType in ["deepCoadd_mergeDet", "deepCoadd_mergeDet_schema", "deepCoadd_peak_schema"]:
                 inFile = getDataFile(mapper, inputType, tractPatchDataId, create=False)
