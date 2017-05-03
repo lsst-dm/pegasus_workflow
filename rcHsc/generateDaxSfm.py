@@ -6,10 +6,12 @@ import Pegasus.DAX3 as peg
 import lsst.log
 import lsst.utils
 from lsst.utils import getPackageDir
+from lsst.daf.persistence import Butler
 from lsst.obs.hsc.hscMapper import HscMapper
+from findShardId import findShardIdFromExpId
 
 logger = lsst.log.Log.getLogger("workflow")
-logger.setLevel(lsst.log.DEBUG)
+logger.setLevel(lsst.log.INFO)
 
 # hard-coded output repo
 # A local output repo is written when running this script;
@@ -92,14 +94,9 @@ def generateSfmDax(name="dax", visits=None, ccdList=None):
     calibRegistry.addPFN(peg.PFN(filePathCalibRegistry, site="lsstvc"))
     dax.addFile(calibRegistry)
 
-    # Add all files in ref_cats
+    # Add necessities for ref_cats
     refCatConfigFile = getDataFile(mapper, "ref_cat_config", {"name": refcatName}, create=True, repoRoot=inputRepo)
     dax.addFile(refCatConfigFile)
-    # Assume any task needing ref_cat will use both of the two fits
-    refCatFile1 = getDataFile(mapper, "ref_cat", {"name": refcatName, "pixel_id": 189584}, create=True, repoRoot=inputRepo)
-    dax.addFile(refCatFile1)
-    refCatFile2 = getDataFile(mapper, "ref_cat", {"name": refcatName, "pixel_id": 189648}, create=True, repoRoot=inputRepo)
-    dax.addFile(refCatFile2)
 
     refCatSchema = "ref_cats/ps1_pv3_3pi_20170110/master_schema.fits"
     filePath = os.path.join(inputRepo, refCatSchema)
@@ -127,8 +124,6 @@ def generateSfmDax(name="dax", visits=None, ccdList=None):
             processCcd.uses(mapperFile, link=peg.Link.INPUT)
 
             processCcd.uses(refCatConfigFile, link=peg.Link.INPUT)
-            processCcd.uses(refCatFile1, link=peg.Link.INPUT)
-            processCcd.uses(refCatFile2, link=peg.Link.INPUT)
             processCcd.uses(refCatSchemaFile, link=peg.Link.INPUT)
 
             inFile = getDataFile(mapper, "raw", dataId, create=True, repoRoot=inputRepo)
@@ -153,6 +148,15 @@ def generateSfmDax(name="dax", visits=None, ccdList=None):
                 outFile = getDataFile(mapper, outputType, dataId, create=True)
                 dax.addFile(outFile)
                 processCcd.uses(outFile, link=peg.Link.OUTPUT)
+
+            butler = Butler(root=inputRepo, calibRoot=calibRepo)
+            shards = findShardIdFromExpId(butler, dataId)
+            for shard in shards:
+                refCatFile = getDataFile(mapper, "ref_cat", {"name": refcatName, "pixel_id": shard}, create=True, repoRoot=inputRepo)
+                if not dax.hasFile(refCatFile):
+                    dax.addFile(refCatFile)
+                    logger.info("Add ref_cat file %s" % refCatFile)
+                processCcd.uses(refCatFile, link=peg.Link.INPUT)
 
             logProcessCcd = peg.File("logProcessCcd.v{visit}.c{ccd}".format(**dataId))
             dax.addFile(logProcessCcd)
@@ -183,7 +187,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate a DAX")
     parser.add_argument("-i", "--inputData", default="rcHsc/visitsRcTest.txt",
                         help="a file including input data information")
-    parser.add_argument("-o", "--outputFile", type=str, default="HscProcessCcd.dax",
+    parser.add_argument("-o", "--outputFile", type=str, default="HscRcTest.dax",
                         help="file name for the output dax xml")
     args = parser.parse_args()
     with open(args.inputData) as f:
