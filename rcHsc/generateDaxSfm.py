@@ -63,7 +63,7 @@ def getDataFile(mapper, datasetType, dataId, create=False, repoRoot=None):
 
     return fileEntry
 
-def generateProcessCcdDax(name="dax", visits=None, ccdList=None):
+def generateSfmDax(name="dax", visits=None, ccdList=None):
     """Generate a Pegasus DAX abstract workflow"""
     try:
         from AutoADAG import AutoADAG
@@ -130,7 +130,7 @@ def generateProcessCcdDax(name="dax", visits=None, ccdList=None):
             dax.addFile(inFile)
             processCcd.uses(inFile, link=peg.Link.INPUT)
             for inputType in ["bias", "dark", "flat", "bfKernel"]:
-                inFile = getDataFile(mapper, inputType, dataId, 
+                inFile = getDataFile(mapper, inputType, dataId,
                                      create=True, repoRoot=calibRepo)
                 if not dax.hasFile(inFile):
                     dax.addFile(inFile)
@@ -165,6 +165,21 @@ def generateProcessCcdDax(name="dax", visits=None, ccdList=None):
 
             dax.addJob(processCcd)
 
+    # Pipeline: makeSkyMap
+    makeSkyMap = peg.Job(name="makeSkyMap")
+    makeSkyMap.uses(mapperFile, link=peg.Link.INPUT)
+    makeSkyMap.addArguments(outPath, "--output", outPath, " --doraise")
+    logMakeSkyMap = peg.File("logMakeSkyMap")
+    dax.addFile(logMakeSkyMap)
+    makeSkyMap.setStderr(logMakeSkyMap)
+    makeSkyMap.uses(logMakeSkyMap, link=peg.Link.OUTPUT)
+
+    skyMap = getDataFile(mapper, "deepCoadd_skyMap", {}, create=True)
+    dax.addFile(skyMap)
+    makeSkyMap.uses(skyMap, link=peg.Link.OUTPUT)
+
+    dax.addJob(makeSkyMap)
+
     return dax
 
 
@@ -179,6 +194,6 @@ if __name__ == "__main__":
         visits = [line.rstrip() for line in f]
 
     ccdList = range(9) + range(10, 104)
-    dax = generateProcessCcdDax("HscDax", visits, ccdList)
+    dax = generateSfmDax("HscSfmDax", visits, ccdList)
     with open(args.outputFile, "w") as f:
         dax.writeXML(f)
