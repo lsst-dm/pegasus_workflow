@@ -108,11 +108,10 @@ def generateSfmDax(name="dax", visits=None, ccdList=None):
     refCatSchemaFile.addPFN(peg.PFN(filePath, site="lsstvc"))
     dax.addFile(refCatSchemaFile)
 
-    configFile = os.path.join(getPackageDir("obs_subaru"), "config", "hsc", "isr.py")
-    fringeFilters = []
-    with open(configFile, 'r') as f:
-        if "fringe.filters" in f.readline():
-            fringeFilters = eval(f.split("=")[-1])
+    # Hack to set fringe filters
+    # Cannot directly read from obs_subaru/config/hsc/isr.py because
+    # config uses abbrev names config.fringe.filters = ['y', 'N921']
+    fringeFilters = ["HSC-Y", "NB0921"]
 
     # Pipeline: processCcd
     for visit in visits:
