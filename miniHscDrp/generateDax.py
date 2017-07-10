@@ -322,10 +322,10 @@ def generateDax(name="dax"):
                 makeCoaddTempExp.setStderr(logMakeCoaddTempExp)
                 makeCoaddTempExp.uses(logMakeCoaddTempExp, link=peg.Link.OUTPUT)
 
-                deepCoadd_tempExp = getDataFile(mapper, "deepCoadd_tempExp", coaddTempExpId, create=True)
-                dax.addFile(deepCoadd_tempExp)
-                makeCoaddTempExp.uses(deepCoadd_tempExp, link=peg.Link.OUTPUT)
-                coaddTempExpList.append(deepCoadd_tempExp)
+                deepCoadd_directWarp = getDataFile(mapper, "deepCoadd_directWarp", coaddTempExpId, create=True)
+                dax.addFile(deepCoadd_directWarp)
+                makeCoaddTempExp.uses(deepCoadd_directWarp, link=peg.Link.OUTPUT)
+                coaddTempExpList.append(deepCoadd_directWarp)
 
                 dax.addJob(makeCoaddTempExp)
 
