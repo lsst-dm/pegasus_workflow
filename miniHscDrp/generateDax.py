@@ -576,6 +576,6 @@ if __name__ == "__main__":
         data = compile(f.read(), args.inputData, 'exec')
         exec(data)
 
-    dax = generateDax("CiHscDax")
+    dax = generateDax("MiniHscDax")
     with open(args.outputFile, "w") as f:
         dax.writeXML(f)
