@@ -260,7 +260,7 @@ def generateDax(name="dax"):
                 dax.addFile(inFile)
             processCcd.uses(inFile, link=peg.Link.INPUT)
 
-        for outputType in ["calexp", "src"]:
+        for outputType in ["calexp", "src", "srcMatch", "srcMatchFull"]:
             outFile = getDataFile(mapper, outputType, data.dataId, create=True)
             dax.addFile(outFile)
             processCcd.uses(outFile, link=peg.Link.OUTPUT)
