@@ -260,7 +260,7 @@ def generateDax(name="dax"):
                 dax.addFile(inFile)
             processCcd.uses(inFile, link=peg.Link.INPUT)
 
-        for outputType in ["calexp", "src"]:
+        for outputType in ["calexp", "src", "srcMatch", "srcMatchFull"]:
             outFile = getDataFile(mapper, outputType, data.dataId, create=True)
             dax.addFile(outFile)
             processCcd.uses(outFile, link=peg.Link.OUTPUT)
@@ -322,10 +322,10 @@ def generateDax(name="dax"):
                 makeCoaddTempExp.setStderr(logMakeCoaddTempExp)
                 makeCoaddTempExp.uses(logMakeCoaddTempExp, link=peg.Link.OUTPUT)
 
-                deepCoadd_tempExp = getDataFile(mapper, "deepCoadd_tempExp", coaddTempExpId, create=True)
-                dax.addFile(deepCoadd_tempExp)
-                makeCoaddTempExp.uses(deepCoadd_tempExp, link=peg.Link.OUTPUT)
-                coaddTempExpList.append(deepCoadd_tempExp)
+                deepCoadd_directWarp = getDataFile(mapper, "deepCoadd_directWarp", coaddTempExpId, create=True)
+                dax.addFile(deepCoadd_directWarp)
+                makeCoaddTempExp.uses(deepCoadd_directWarp, link=peg.Link.OUTPUT)
+                coaddTempExpList.append(deepCoadd_directWarp)
 
                 dax.addJob(makeCoaddTempExp)
 
@@ -576,6 +576,6 @@ if __name__ == "__main__":
         data = compile(f.read(), args.inputData, 'exec')
         exec(data)
 
-    dax = generateDax("CiHscDax")
+    dax = generateDax("MiniHscDax")
     with open(args.outputFile, "w") as f:
         dax.writeXML(f)
