@@ -188,10 +188,15 @@ def generateCoaddDax(name="dax", tractDataId=0, dataDict=None):
             )
 
             # calexp_md is used in SelectDataIdContainer
+            # src is used in PsfWcsSelectImagesTask
             for visitId in visitDict:
                 for ccdId in visitDict[visitId]:
-                    calexp = getDataFile(mapper, "calexp", {'visit': visitId, 'ccd': ccdId}, create=False)
-                    assembleCoadd.uses(calexp, link=peg.Link.INPUT)
+                    for inputType in ["calexp", "src"]:
+                        inFile = getDataFile(mapper, inputType, {'visit': visitId, 'ccd': ccdId},
+                                             create=True, repoRoot=inputRepo)
+                        if not dax.hasFile(inFile):
+                            dax.addFile(inFile)
+                        assembleCoadd.uses(inFile, link=peg.Link.INPUT)
 
             for coaddTempExp in coaddTempExpList:
                 assembleCoadd.uses(coaddTempExp, link=peg.Link.INPUT)
