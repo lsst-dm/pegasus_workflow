@@ -17,7 +17,8 @@ logger.setLevel(lsst.log.WARN)
 # A local output repo is written when running this script;
 # this local repo is not used at all for actual job submission and run.
 # Real submitted run dumps output in scratch (specified in the site catalog).
-outPath = 'repoCo'
+# This hack is also hard-coded in getDataFile.py
+outPath = 'repo'
 logger.debug("outPath: %s", outPath)
 
 inputRepo = "/project/hsc_rc/w_2017_28/DM-11184/"
