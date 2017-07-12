@@ -9,6 +9,7 @@ from lsst.utils import getPackageDir
 from lsst.daf.persistence import Butler
 from lsst.obs.hsc.hscMapper import HscMapper
 from findShardId import findShardIdFromExpId
+from getDataFile import getDataFile
 
 logger = lsst.log.Log.getLogger("workflow")
 logger.setLevel(lsst.log.INFO)
@@ -26,42 +27,6 @@ calibRepo = "/datasets/hsc/repo/CALIB/"
 # This is a config of LoadIndexedReferenceObjectsTask ref_dataset_name
 refcatName = "ps1_pv3_3pi_20170110"
 
-def getDataFile(mapper, datasetType, dataId, create=False, repoRoot=None):
-    """Get the Pegasus File entry given Butler datasetType and dataId.
-    Retrieve the file name/path through a CameraMapper instance
-        and prepend outPath to it
-    Optionally create new Pegasus File entries
-    Parameters
-    ----------
-    mapper: lsst.obs.base.CameraMapper
-        A specific CameraMapper instance for getting the name and locating
-        the file in a Butler repo.
-    datasetType: `str`
-        Butler dataset type
-    dataId: `dict`
-        Butler data ID
-    create: `bool`, optional
-        If True, create a new Pegasus File entry if it does not exist yet.
-    repoRoot: `str`, optional
-        Prepend butler repo root path for the PFN of the input files
-    Returns
-    -------
-    fileEntry:
-        A Pegasus File entry or a LFN corresponding to an entry
-    """
-    mapFunc = getattr(mapper, "map_" + datasetType)
-    butlerPath = mapFunc(dataId).getLocations()[0]
-    fileEntry = lfn = os.path.join(outPath, butlerPath)
-
-    if create:
-        fileEntry = peg.File(lfn)
-        if repoRoot is not None:
-            filePath = os.path.join(repoRoot, butlerPath)
-            fileEntry.addPFN(peg.PFN(filePath, site="local"))
-            fileEntry.addPFN(peg.PFN(filePath, site="lsstvc"))
-            logger.info("%s %s: %s -> %s", datasetType, dataId, filePath, lfn)
-
-    return fileEntry
 
 def generateSfmDax(name="dax", visits=None, ccdList=None):
     """Generate a Pegasus DAX abstract workflow"""
