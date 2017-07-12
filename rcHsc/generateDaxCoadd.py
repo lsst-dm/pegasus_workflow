@@ -108,6 +108,13 @@ def generateCoaddDax(name="dax", tractDataId=0, dataDict=None):
     preDetectCoaddSources.uses(deepCoadd_det_schema, link=peg.Link.OUTPUT)
     dax.addJob(preDetectCoaddSources)
 
+    # workaround for DM-10634
+    filePath = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                            "safeClipAssembleCoaddConfig.py")
+    coaddConfig = peg.File("safeClipAssembleCoaddConfig.py")
+    coaddConfig.addPFN(peg.PFN(filePath, site="lsstvc"))
+    dax.addFile(coaddConfig)
+
     # Pipeline: processCcd  -- DONE previously
     # Pipeline: makeSkyMap  -- DONE previously
     skyMap = getDataFile(mapper, "deepCoadd_skyMap", {}, create=True, repoRoot=inputRepo)
@@ -166,13 +173,17 @@ def generateCoaddDax(name="dax", tractDataId=0, dataDict=None):
             assembleCoadd.uses(mapperFile, link=peg.Link.INPUT)
             assembleCoadd.uses(registry, link=peg.Link.INPUT)
             assembleCoadd.uses(skyMap, link=peg.Link.INPUT)
+            # workaround for DM-10634
+            assembleCoadd.uses(coaddConfig, link=peg.Link.INPUT)
             assembleCoadd.addArguments(
                 outPath, "--output", outPath, ident, " --doraise",
+                "-C", coaddConfig,
                 " --selectId visit=" + " --selectId visit=".join(str(visitId) for visitId in visitDict)
             )
             logger.debug(
                 "Adding assembleCoadd %s %s %s %s %s %s",
                 outPath, "--output", outPath, ident, " --doraise",
+                "-C", coaddConfig,
                 " --selectId visit=" + " --selectId visit=".join(str(visitId) for visitId in visitDict)
             )
 
