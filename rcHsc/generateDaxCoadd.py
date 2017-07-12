@@ -201,6 +201,11 @@ def generateCoaddDax(name="dax", tractDataId=0, dataDict=None):
                 assembleCoadd.uses(coaddTempExp, link=peg.Link.INPUT)
 
             coaddId = dict(filter=filterName, tract=tractDataId, patch=patchDataId)
+            brightObjectMask = getDataFile(mapper, "brightObjectMask", coaddId,
+                                           create=True, repoRoot=rootRepo)
+            dax.addFile(brightObjectMask)
+            assembleCoadd.uses(brightObjectMask, link=peg.Link.INPUT)
+
             logAssembleCoadd = peg.File("logAssembleCoadd.%(tract)d-%(patch)s-%(filter)s" % coaddId)
             dax.addFile(logAssembleCoadd)
             assembleCoadd.setStderr(logAssembleCoadd)
