@@ -8,7 +8,7 @@ import lsst.utils
 from lsst.utils import getPackageDir
 from lsst.daf.persistence import Butler
 from lsst.obs.hsc.hscMapper import HscMapper
-from findShardId import findShardId
+from findShardId import findShardIdFromExpId
 from getDataFile import getDataFile
 
 logger = lsst.log.Log.getLogger("workflow")
@@ -115,7 +115,7 @@ def generateSfmDax(name="dax", visits=None, ccdList=None):
                 processCcd.uses(outFile, link=peg.Link.OUTPUT)
 
             butler = Butler(root=inputRepo, calibRoot=calibRepo)
-            shards = findShardId(butler, dataId)
+            shards = findShardIdFromExpId(butler, dataId)
             for shard in shards:
                 refCatFile = getDataFile(mapper, "ref_cat", {"name": refcatName, "pixel_id": shard}, create=True, repoRoot=inputRepo)
                 if not dax.hasFile(refCatFile):

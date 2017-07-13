@@ -9,7 +9,7 @@ from lsst.meas.algorithms import LoadIndexedReferenceObjectsTask, LoadIndexedRef
 logger = lsst.log.Log.getLogger("findShardId")
 logger.setLevel(lsst.log.DEBUG)
 
-def findShardId(butler, expId, expType="raw", ref_dataset_name="ps1_pv3_3pi_20170110"):
+def findShardIdFromExpId(butler, expId, expType="raw", ref_dataset_name="ps1_pv3_3pi_20170110"):
     """Obtain the shard IDs given (an exposure and the loader)
 
     Parameters
