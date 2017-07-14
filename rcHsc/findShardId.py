@@ -89,6 +89,7 @@ def findShardIdFromPatch(butler, dataId, ref_dataset_name="ps1_pv3_3pi_20170110"
     patchIndex = map(int, dataId['patch'].split(','))
     pBox = afwGeom.Box2D(tractInfo.getPatchInfo(patchIndex).getOuterBBox())
     coordList = [wcs.pixelToSky(corner) for corner in pBox.getCorners()]
+    # Copied from DirectMatchTask.calculateCircle which instead takes a catalog
     center = afwCoord.averageCoord(coordList)
     radius = max(center.angularSeparation(coord) for coord in coordList)
     # meas/astrom/directMatch.py DirectMatchConfig.matchRadius : assume no override
