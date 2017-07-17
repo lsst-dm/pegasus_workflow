@@ -418,6 +418,8 @@ def generateCoaddDax(name="dax", tractDataId=0, dataDict=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate a DAX")
+    parser.add_argument("-t", "--tractId", default=8766,
+                        help="the tract ID of the input file")
     parser.add_argument("-i", "--inputData", default="rcHsc/smallFPVC_t8766",
                         help="a file including input data information")
     parser.add_argument("-o", "--outputFile", type=str, default="HscRcTest.dax",
@@ -432,6 +434,6 @@ if __name__ == "__main__":
             dataDict[filterName][patchId] = visitCcd.split(',')
 
     logger.debug("dataDict: %s", dataDict)
-    dax = generateCoaddDax("HscCoaddDax", 8766, dataDict)
+    dax = generateCoaddDax("HscCoaddDax", args.tractId, dataDict)
     with open(args.outputFile, "w") as f:
         dax.writeXML(f)
