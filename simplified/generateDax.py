@@ -21,14 +21,14 @@ logger.debug("outPath: %s", outPath)
 ciHscDir = lsst.utils.getPackageDir('ci_hsc')
 inputRepo = os.path.join(ciHscDir, "DATA")
 calibRepo = os.path.join(inputRepo, "CALIB")
+refcatName = "ps1_pv3_3pi_20170110"
 
 
-def getDataFile(mapper, datasetType, dataId, create=False, replaceRootPath=None):
+def getDataFile(mapper, datasetType, dataId, create=False, repoRoot=None):
     """Get the Pegasus File entry given Butler datasetType and dataId.
 
-    Retrieve the file name/path through a CameraMapper instance
-    Optionally tweak the path to a better LFN using replaceRootPath
-    Optionally create new Pegasus File entries
+    Retrieve the file name/path through a CameraMapper instance and prepend
+    outPath to it.  Optionally create new Pegasus File entries
 
     Parameters
     ----------
@@ -45,8 +45,8 @@ def getDataFile(mapper, datasetType, dataId, create=False, replaceRootPath=None)
     create: `bool`, optional
         If True, create a new Pegasus File entry if it does not exist yet.
 
-    replaceRootPath: `str`, optional
-        Replace the given root path with the global outPath.
+    repoRoot: `str`, optional
+        Prepend butler repo root path for the PFN of the input files.
 
     Returns
     -------
@@ -54,19 +54,19 @@ def getDataFile(mapper, datasetType, dataId, create=False, replaceRootPath=None)
         A Pegasus File entry or a LFN corresponding to an entry
     """
     mapFunc = getattr(mapper, "map_" + datasetType)
-    fileEntry = lfn = filePath = mapFunc(dataId).getLocations()[0]
-
-    if replaceRootPath is not None:
-        lfn = filePath.replace(replaceRootPath, outPath)
+    butlerPath = mapFunc(dataId).getLocations()[0]
+    fileEntry = lfn = os.path.join(outPath, butlerPath)
 
     if create:
         fileEntry = peg.File(lfn)
-        if not filePath.startswith(outPath):
+        if repoRoot is not None:
+            filePath = os.path.join(repoRoot, butlerPath)
             fileEntry.addPFN(peg.PFN(filePath, site="local"))
             fileEntry.addPFN(peg.PFN(filePath, site="lsstvc"))
-        logger.debug("%s %s: %s -> %s", datasetType, dataId, filePath, lfn)
+            logger.info("%s %s: %s -> %s", datasetType, dataId, filePath, lfn)
 
     return fileEntry
+
 
 def generateDax(name="dax"):
     """Generate a Pegasus DAX abstract workflow"""
@@ -78,8 +78,7 @@ def generateDax(name="dax"):
         dax = AutoADAG(name)
 
     # Construct these mappers only for creating dax, not for actual runs.
-    mapperInput = HscMapper(root=inputRepo)
-    mapper = HscMapper(root=inputRepo, outputRoot=outPath)
+    mapper = HscMapper(root=inputRepo, calibRoot=calibRepo)
 
     # Get the following butler or config files directly from ci_hsc package
     filePathMapper = os.path.join(inputRepo, "_mapper")
@@ -101,10 +100,24 @@ def generateDax(name="dax"):
     dax.addFile(calibRegistry)
 
     filePath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "skymapConfig.py")
-    skymapConfig = peg.File("skymapConfig.py")
+    skymapConfig = peg.File("skymap.py")
     skymapConfig.addPFN(peg.PFN(filePath, site="local"))
     skymapConfig.addPFN(peg.PFN(filePath, site="lsstvc"))
     dax.addFile(skymapConfig)
+
+    refCatConfigFile = getDataFile(mapper, "ref_cat_config", {"name": refcatName}, create=True, repoRoot=inputRepo)
+    dax.addFile(refCatConfigFile)
+    refCatFile1 = getDataFile(mapper, "ref_cat", {"name": refcatName, "pixel_id": 189584}, create=True, repoRoot=inputRepo)
+    dax.addFile(refCatFile1)
+    refCatFile2 = getDataFile(mapper, "ref_cat", {"name": refcatName, "pixel_id": 189648}, create=True, repoRoot=inputRepo)
+    dax.addFile(refCatFile2)
+
+    refCatSchema = "ref_cats/ps1_pv3_3pi_20170110/master_schema.fits"
+    filePath = os.path.join(inputRepo, refCatSchema)
+    refCatSchemaFile = peg.File(os.path.join(outPath, refCatSchema))
+    refCatSchemaFile.addPFN(peg.PFN(filePath, site="local"))
+    refCatSchemaFile.addPFN(peg.PFN(filePath, site="lsstvc"))
+    dax.addFile(refCatSchemaFile)
 
     # Pipeline: processCcd
     tasksProcessCcdList = []
@@ -113,18 +126,23 @@ def generateDax(name="dax"):
         logger.debug("processCcd dataId: %s", data.dataId)
 
         processCcd = peg.Job(name="processCcd")
-        processCcd.addArguments(outPath, "--calib", outPath, "--output", outPath,
-                                " --doraise", data.id())
+        processCcd.addArguments(outPath, "--calib", outPath,
+                                "--output", outPath, " --doraise", data.id())
         processCcd.uses(registry, link=peg.Link.INPUT)
         processCcd.uses(calibRegistry, link=peg.Link.INPUT)
         processCcd.uses(mapperFile, link=peg.Link.INPUT)
 
-        inFile = getDataFile(mapperInput, "raw", data.dataId, create=True, replaceRootPath=inputRepo)
+        processCcd.uses(refCatConfigFile, link=peg.Link.INPUT)
+        processCcd.uses(refCatFile1, link=peg.Link.INPUT)
+        processCcd.uses(refCatFile2, link=peg.Link.INPUT)
+        processCcd.uses(refCatSchemaFile, link=peg.Link.INPUT)
+
+        inFile = getDataFile(mapper, "raw", data.dataId, create=True, repoRoot=inputRepo)
         dax.addFile(inFile)
         processCcd.uses(inFile, link=peg.Link.INPUT)
         for inputType in ["bias", "dark", "flat", "bfKernel"]:
-            inFile = getDataFile(mapperInput, inputType, data.dataId,
-                                 create=True, replaceRootPath=calibRepo)
+            inFile = getDataFile(mapper, inputType, data.dataId,
+                                 create=True, repoRoot=calibRepo)
             if not dax.hasFile(inFile):
                 dax.addFile(inFile)
             processCcd.uses(inFile, link=peg.Link.INPUT)
@@ -145,6 +163,7 @@ def generateDax(name="dax"):
     # Pipeline: makeSkyMap
     makeSkyMap = peg.Job(name="makeSkyMap")
     makeSkyMap.uses(mapperFile, link=peg.Link.INPUT)
+    makeSkyMap.uses(registry, link=peg.Link.INPUT)
     makeSkyMap.uses(skymapConfig, link=peg.Link.INPUT)
     makeSkyMap.addArguments(outPath, "--output", outPath, "-C", skymapConfig, " --doraise")
     logMakeSkyMap = peg.File("logMakeSkyMap")
@@ -190,7 +209,7 @@ def generateDax(name="dax"):
             makeCoaddTempExp.setStderr(logMakeCoaddTempExp)
             makeCoaddTempExp.uses(logMakeCoaddTempExp, link=peg.Link.OUTPUT)
 
-            deepCoadd_tempExp = getDataFile(mapper, "deepCoadd_tempExp", coaddTempExpId, create=True)
+            deepCoadd_tempExp = getDataFile(mapper, "deepCoadd_directWarp", coaddTempExpId, create=True)
             dax.addFile(deepCoadd_tempExp)
             makeCoaddTempExp.uses(deepCoadd_tempExp, link=peg.Link.OUTPUT)
             coaddTempExpList.append(deepCoadd_tempExp)
