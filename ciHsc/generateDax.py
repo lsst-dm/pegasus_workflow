@@ -124,6 +124,7 @@ def preruns(dax):
     # Pipeline: measureCoaddSources
     preMeasureCoaddSources = peg.Job(name="measureCoaddSources")
     preMeasureCoaddSources.uses(mapperFile, link=peg.Link.INPUT)
+    preMeasureCoaddSources.uses(refCatConfigFile, link=peg.Link.INPUT)
     preMeasureCoaddSources.addArguments(outPath, "--output", outPath, " --doraise")
     for inputType in ["deepCoadd_mergeDet_schema", "deepCoadd_peak_schema", "src_schema"]:
         inFile = getDataFile(mapper, inputType, {}, create=False)
