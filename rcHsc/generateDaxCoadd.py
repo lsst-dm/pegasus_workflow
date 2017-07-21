@@ -421,16 +421,23 @@ if __name__ == "__main__":
                         help="the tract ID of the input file")
     parser.add_argument("-i", "--inputData", default="rcHsc/smallFPVC_t8766",
                         help="a file including input data information")
+    parser.add_argument("-b", "--blacklist", default="rcHsc/rcBlacklist.txt",
+                        help="a file including visit-ccd to ignore")
     parser.add_argument("-o", "--outputFile", type=str, default="HscRcTest.dax",
                         help="file name for the output dax xml")
     args = parser.parse_args()
+
+    with open(args.blacklist, "r") as f:
+        blacklist = [line.rstrip() for line in f]
+
     from collections import defaultdict
     dataDict = defaultdict(dict)
     # dataDict[filterName][patch] is a list of 'visit-ccd'
     with open(args.inputData, "r") as f:
         for line in f:
             filterName, patchId, visitCcd = line.rstrip().split('|')
-            dataDict[filterName][patchId] = visitCcd.split(',')
+            if visitCcd not in blacklist:
+                dataDict[filterName][patchId] = visitCcd.split(',')
 
     logger.debug("dataDict: %s", dataDict)
     dax = generateCoaddDax("HscCoaddDax", args.tractId, dataDict)
