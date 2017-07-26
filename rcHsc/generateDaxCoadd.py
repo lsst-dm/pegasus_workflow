@@ -29,7 +29,7 @@ rootRepo = "/datasets/hsc/repo"
 refcatName = "ps1_pv3_3pi_20170110"
 
 
-def generateCoaddDax(name="dax", tractDataId=0, dataDict=None):
+def generateCoaddDax(name="dax", tractDataId=0, dataDict=None, blacklist=None, doMosaic=False):
     """Generate a Pegasus DAX abstract workflow"""
     try:
         from AutoADAG import AutoADAG
@@ -40,6 +40,9 @@ def generateCoaddDax(name="dax", tractDataId=0, dataDict=None):
 
     # Construct these mappers only for creating dax, not for actual runs.
     mapper = HscMapper(root=rootRepo)
+
+    # Construct a butler only for finding ref cat shards
+    butler = Butler(inputRepo)
 
     # Get the following butler or config files directly from ci_hsc package
     filePathMapper = os.path.join(rootRepo, "_mapper")
@@ -136,6 +139,75 @@ def generateCoaddDax(name="dax", tractDataId=0, dataDict=None):
     skyMap = getDataFile(mapper, "deepCoadd_skyMap", {}, create=True, repoRoot=inputRepo)
     dax.addFile(skyMap)
 
+    # Pipeline: mosaic per filter
+    if doMosaic:
+        for filterName in dataDict:
+            visits = set()
+            # this ccds needs to consider backlist where no sfm results are available
+            ccds = range(9) + range(10, 104)
+            for patchDataId in dataDict[filterName]:
+                for ccd in dataDict[filterName][patchDataId]:
+                    visitId, ccdId = map(int, ccd.split('-'))
+                    visits.add(visitId)
+                    #ccds.add(ccd)
+
+            #visits = map(int, {ccd.split('-')[0] for ccd in dataDict[filterName][patch] for patch in dataDict[filterName]})
+
+            mosaic = peg.Job(name="mosaic")
+            mosaic.uses(mapperFile, link=peg.Link.INPUT)
+            mosaic.uses(registry, link=peg.Link.INPUT)
+            mosaic.uses(skyMap, link=peg.Link.INPUT)
+            mosaic.uses(refCatConfigFile, link=peg.Link.INPUT)
+            mosaic.uses(refCatSchemaFile, link=peg.Link.INPUT)
+            for visitId in visits:
+                for ccdId in ccds:
+                #visitId, ccdId = map(int, ccd.split('-'))
+                    ccdStr = "%d-%d" % (visitId, ccdId)
+                    if ccdStr in blacklist:
+                        continue
+                    for inputType in ["calexp", "src", "srcMatch"]:
+                        inFile = getDataFile(mapper, inputType, {'visit': visitId, 'ccd': ccdId},
+                                             create=True, repoRoot=inputRepo)
+                        if not dax.hasFile(inFile):
+                            dax.addFile(inFile)
+                        mosaic.uses(inFile, link=peg.Link.INPUT)
+                    for outputType in ["wcs", "fcr"]:
+                        outFile = getDataFile(mapper, outputType,
+                                      {'visit': visitId, 'ccd': ccdId, 'tract': tractDataId},
+                                      create=True)
+                        dax.addFile(outFile)
+                        mosaic.uses(outFile, link=peg.Link.OUTPUT)
+
+            # MosaicTask uses meas.algorithsm.LoadReferenceObjectsTask.joinMatchListWithCatalog
+            # Here I use skymap patches instead, so not to read catalogs
+            refs = set()
+            for patchDataId in dataDict[filterName]:
+                tractPatchDataId = dict(tract=tractDataId, patch=patchDataId)
+                shards = findShardIdFromPatch(butler, tractPatchDataId)
+                for shard in shards:
+                    refCatFile = getDataFile(mapper, "ref_cat", {"name": refcatName, "pixel_id": shard}, create=True, repoRoot=rootRepo)
+                    if not dax.hasFile(refCatFile):
+                        dax.addFile(refCatFile)
+                        logger.debug("Add ref_cat file %s" % refCatFile)
+                    if refCatFile not in refs:
+                        mosaic.uses(refCatFile, link=peg.Link.INPUT)
+                        refs.add(refCatFile)
+
+            mosaic.addArguments(
+                outPath, "--output", outPath, " --doraise",
+                " --id ccd=0..8^10..103 visit="+"^".join(str(visit) for visit in visits),
+                " tract=%s" % tractDataId,
+                #" --diagnostics --diagDir=%s" % TBD
+            )
+
+            logMosaic = peg.File("logMosaic.%d-%s" % (tractDataId, filterName))
+            dax.addFile(logMosaic)
+            mosaic.setStderr(logMosaic)
+            mosaic.setStdout(logMosaic)
+            mosaic.uses(logMosaic, link=peg.Link.OUTPUT)
+            dax.addJob(mosaic)
+
+
     # Pipeline: makeCoaddTempExp per patch per visit per filter
     for filterName in dataDict:
         for patchDataId in dataDict[filterName]:
@@ -157,15 +229,26 @@ def generateCoaddDax(name="dax", tractDataId=0, dataDict=None):
                         dax.addFile(calexp)
                     makeCoaddTempExp.uses(calexp, link=peg.Link.INPUT)
 
+                if doMosaic:
+                    applyMosaic = " "
+                    for ccdId in visitDict[visitId]:
+                        for inputType in ["wcs", "fcr"]:
+                            inFile = getDataFile(mapper, inputType,
+                                         {'visit': visitId, 'ccd': ccdId, 'tract': tractDataId},
+                                         create=False)
+                            makeCoaddTempExp.uses(inFile, link=peg.Link.INPUT)
+                else:
+                    applyMosaic = " -c doApplyUberCal=False "
+
                 makeCoaddTempExp.addArguments(
                     outPath, "--output", outPath, " --doraise",
-                    ident, " -c doApplyUberCal=False ",
+                    ident, applyMosaic,
                     "--selectId visit=%s ccd=%s" % (visitId, '^'.join(str(ccdId) for ccdId in visitDict[visitId]))
                 )
                 logger.debug(
                     "Adding makeCoaddTempExp %s %s %s %s %s %s %s",
                     outPath, "--output", outPath, " --doraise",
-                    ident, " -c doApplyUberCal=False ",
+                    ident, applyMosaic,
                     "--selectId visit=%s ccd=%s" % (visitId, '^'.join(str(ccdId) for ccdId in visitDict[visitId]))
                 )
 
@@ -303,7 +386,6 @@ def generateCoaddDax(name="dax", tractDataId=0, dataDict=None):
             measureCoaddSources.uses(refCatConfigFile, link=peg.Link.INPUT)
             measureCoaddSources.uses(refCatSchemaFile, link=peg.Link.INPUT)
 
-            butler = Butler(inputRepo)
             # The pipeline uses the source catalog to decide what ref shards to need
             # Here I use skymap patches instead, so not to read source catalog
             shards = findShardIdFromPatch(butler, tractPatchDataId)
@@ -440,6 +522,6 @@ if __name__ == "__main__":
                 dataDict[filterName][patchId] = visitCcd.split(',')
 
     logger.debug("dataDict: %s", dataDict)
-    dax = generateCoaddDax("HscCoaddDax", args.tractId, dataDict)
+    dax = generateCoaddDax("HscCoaddDax", args.tractId, dataDict, blacklist=blacklist, doMosaic=True)
     with open(args.outputFile, "w") as f:
         dax.writeXML(f)

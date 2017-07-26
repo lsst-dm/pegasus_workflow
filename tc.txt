@@ -27,6 +27,15 @@ tr makeDiscreteSkyMap {
     }
 }
 
+tr mosaic {
+    site lsstvc {
+        pfn "/home/hchiang2/stack/meas_mosaic/bin/mosaic.py"
+        arch "x86_64"
+        os "linux"
+        type "INSTALLED"
+    }
+}
+
 tr makeCoaddTempExp {
     site lsstvc {
         pfn "${PIPE_TASKS_DIR}/bin/makeCoaddTempExp.py"
