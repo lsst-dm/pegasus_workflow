@@ -75,6 +75,17 @@ def generateSfmDax(name="dax", visits=None, ccdList=None):
     # config uses abbrev names config.fringe.filters = ['y', 'N921']
     fringeFilters = ["HSC-Y", "NB0921"]
 
+    # Add prerun
+    preProcessCcd = peg.Job(name="processCcd")
+    preProcessCcd.uses(mapperFile, link=peg.Link.INPUT)
+    preProcessCcd.uses(refCatConfigFile, link=peg.Link.INPUT)
+    preProcessCcd.addArguments(outPath, "--output", outPath, " --doraise")
+    for schema in ["icSrc_schema", "src_schema"]:
+        outFile = getDataFile(mapper, schema, {}, create=True)
+        dax.addFile(outFile)
+        preProcessCcd.uses(outFile, link=peg.Link.OUTPUT)
+    dax.addJob(preProcessCcd)
+
     # Pipeline: processCcd
     for visit in visits:
         for ccd in ccdList:
@@ -87,6 +98,9 @@ def generateSfmDax(name="dax", visits=None, ccdList=None):
             processCcd.uses(registry, link=peg.Link.INPUT)
             processCcd.uses(calibRegistry, link=peg.Link.INPUT)
             processCcd.uses(mapperFile, link=peg.Link.INPUT)
+            for inputType in ["icSrc_schema", "src_schema"]:
+                inFile = getDataFile(mapper, inputType, {}, create=False)
+                processCcd.uses(inFile, link=peg.Link.INPUT)
 
             processCcd.uses(refCatConfigFile, link=peg.Link.INPUT)
             processCcd.uses(refCatSchemaFile, link=peg.Link.INPUT)

@@ -69,9 +69,8 @@ def generateCoaddDax(name="dax", tractDataId=0, dataDict=None, blacklist=None, d
     dax.addFile(refCatSchemaFile)
 
     # schema from processCcd
-    for schema in ["src_schema", ]:
-        outFile = getDataFile(mapper, schema, {}, create=True, repoRoot=inputRepo)
-        dax.addFile(outFile)
+    srcSchema = getDataFile(mapper, "src_schema", {}, create=True, repoRoot=inputRepo)
+    dax.addFile(srcSchema)
 
     # pre-run detectCoaddSources for schema
     preDetectCoaddSources = peg.Job(name="detectCoaddSources")
@@ -159,6 +158,7 @@ def generateCoaddDax(name="dax", tractDataId=0, dataDict=None, blacklist=None, d
             mosaic.uses(skyMap, link=peg.Link.INPUT)
             mosaic.uses(refCatConfigFile, link=peg.Link.INPUT)
             mosaic.uses(refCatSchemaFile, link=peg.Link.INPUT)
+            mosaic.uses(srcSchema, link=peg.Link.INPUT)
             for visitId in visits:
                 for ccdId in ccds:
                 #visitId, ccdId = map(int, ccd.split('-'))
@@ -287,6 +287,7 @@ def generateCoaddDax(name="dax", tractDataId=0, dataDict=None, blacklist=None, d
 
             # calexp_md is used in SelectDataIdContainer
             # src is used in PsfWcsSelectImagesTask
+            assembleCoadd.uses(srcSchema, link=peg.Link.INPUT)
             for visitId in visitDict:
                 for ccdId in visitDict[visitId]:
                     for inputType in ["calexp", "src"]:
@@ -405,6 +406,7 @@ def generateCoaddDax(name="dax", tractDataId=0, dataDict=None, blacklist=None, d
                 measureCoaddSources.uses(inFile, link=peg.Link.INPUT)
 
             # src is used in the PropagateVisitFlagsTask subtask
+            measureCoaddSources.uses(srcSchema, link=peg.Link.INPUT)
             for ccd in dataDict[filterName][patchDataId]:
                 visitId, ccdId = map(int, ccd.split('-'))
                 src = getDataFile(mapper, "src", {'visit': visitId, 'ccd': ccdId},
