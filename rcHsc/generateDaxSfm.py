@@ -109,7 +109,7 @@ def generateSfmDax(name="dax", visits=None, ccdList=None):
                     dax.addFile(inFile)
                 processCcd.uses(inFile, link=peg.Link.INPUT)
 
-            for outputType in ["calexp", "src"]:
+            for outputType in ["calexp", "src", "srcMatch"]:
                 outFile = getDataFile(mapper, outputType, dataId, create=True)
                 dax.addFile(outFile)
                 processCcd.uses(outFile, link=peg.Link.OUTPUT)
