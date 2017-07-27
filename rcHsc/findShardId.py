@@ -95,6 +95,13 @@ def findShardIdFromPatch(butler, dataId, ref_dataset_name="ps1_pv3_3pi_20170110"
     # meas/astrom/directMatch.py DirectMatchConfig.matchRadius : assume no override
     directMatchTask = DirectMatchTask(refObjLoader=loader)
     maxRadius = radius + directMatchTask.config.matchRadius * afwGeom.arcseconds
+    # TODO: figure out what ref cat shards are really needed
+    # Use a large radius just to get by for now
+    # More warnings "schema=None is not a schema" are seen from meas/algorithms/loadReferenceObjects.py (getRefFluxField)
+    # joinMatchListWithCatalog
+    # https://github.com/lsst/meas_mosaic/blob/f1d35002dc2c9b7478e670afee8cafd40ab0a80b/python/lsst/meas/mosaic/mosaicTask.py#L346
+    # https://github.com/lsst/meas_mosaic/blob/f1d35002dc2c9b7478e670afee8cafd40ab0a80b/python/lsst/meas/mosaic/mosaicTask.py#L364
+    maxRadius = maxRadius * 2.1
 
     # Copied from LoadIndexedReferenceObjectsTask.loadSkyCircle and get_shards
     id_list, boundary_mask = loader.indexer.get_pixel_ids(center, maxRadius)
