@@ -519,9 +519,8 @@ if __name__ == "__main__":
     # dataDict[filterName][patch] is a list of 'visit-ccd'
     with open(args.inputData, "r") as f:
         for line in f:
-            filterName, patchId, visitCcd = line.rstrip().split('|')
-            if visitCcd not in blacklist:
-                dataDict[filterName][patchId] = visitCcd.split(',')
+            filterName, patchId, visitCcds = line.rstrip().split('|')
+            dataDict[filterName][patchId] = [visitCcd for visitCcd in visitCcds.split(',') if visitCcd not in blacklist]
 
     logger.debug("dataDict: %s", dataDict)
     dax = generateCoaddDax("HscCoaddDax", args.tractId, dataDict, blacklist=blacklist, doMosaic=True)
