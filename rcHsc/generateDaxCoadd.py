@@ -22,7 +22,7 @@ logger.setLevel(lsst.log.WARN)
 outPath = 'repo'
 logger.debug("outPath: %s", outPath)
 
-inputRepo = "/project/hsc_rc/w_2017_28/DM-11184/"
+inputRepo = "/project/hsc_rc/w_2017_33_py2/"
 rootRepo = "/datasets/hsc/repo"
 
 # This is a config of LoadIndexedReferenceObjectsTask ref_dataset_name
@@ -523,6 +523,6 @@ if __name__ == "__main__":
             dataDict[filterName][patchId] = [visitCcd for visitCcd in visitCcds.split(',') if visitCcd not in blacklist]
 
     logger.debug("dataDict: %s", dataDict)
-    dax = generateCoaddDax("HscCoaddDax", args.tractId, dataDict, blacklist=blacklist, doMosaic=True)
+    dax = generateCoaddDax("HscCoaddDax", args.tractId, dataDict, blacklist=blacklist, doMosaic=False)
     with open(args.outputFile, "w") as f:
         dax.writeXML(f)
