@@ -29,7 +29,7 @@ rootRepo = "/datasets/hsc/repo"
 refcatName = "ps1_pv3_3pi_20170110"
 
 
-def generateCoaddDax(name="dax", tractDataId=0, dataDict=None, blacklist=None, doMosaic=False):
+def generateCoaddDax(name="dax", tractDataId=0, dataDict=None, blacklist=None, blacklistCoaddTempExp=None, doMosaic=False):
     """Generate a Pegasus DAX abstract workflow"""
     try:
         from AutoADAG import AutoADAG
@@ -218,6 +218,10 @@ def generateCoaddDax(name="dax", tractDataId=0, dataDict=None, blacklist=None, d
                 visitId, ccdId = map(int, ccd.split('-'))
                 visitDict[visitId].append(ccdId)
             for visitId in visitDict:
+                patchVisitStr = "%d-%s-%d" % (tractDataId, patchDataId, visitId)
+                if patchVisitStr in blacklistCoaddTempExp:
+                    continue
+
                 makeCoaddTempExp = peg.Job(name="makeCoaddTempExp")
                 makeCoaddTempExp.uses(mapperFile, link=peg.Link.INPUT)
                 makeCoaddTempExp.uses(registry, link=peg.Link.INPUT)
@@ -505,14 +509,18 @@ if __name__ == "__main__":
                         help="the tract ID of the input file")
     parser.add_argument("-i", "--inputData", default="rcHsc/smallFPVC_t8766",
                         help="a file including input data information")
-    parser.add_argument("-b", "--blacklist", default="rcHsc/rcBlacklist.txt",
+    parser.add_argument("-b", "--blacklist", default="rcHsc/blacklistCcd.txt",
                         help="a file including visit-ccd to ignore")
+    parser.add_argument("--blacklistCoaddTempExp", default="rcHsc/blacklistCoaddTempExp.txt",
+                        help="a file including patch-visit to ignore in makeCoaddTempExp")
     parser.add_argument("-o", "--outputFile", type=str, default="HscRcTest.dax",
                         help="file name for the output dax xml")
     args = parser.parse_args()
 
     with open(args.blacklist, "r") as f:
         blacklist = [line.rstrip() for line in f]
+    with open(args.blacklistCoaddTempExp, "r") as f:
+        blacklistCoaddTempExp = [line.rstrip() for line in f]
 
     from collections import defaultdict
     dataDict = defaultdict(dict)
@@ -523,6 +531,6 @@ if __name__ == "__main__":
             dataDict[filterName][patchId] = [visitCcd for visitCcd in visitCcds.split(',') if visitCcd not in blacklist]
 
     logger.debug("dataDict: %s", dataDict)
-    dax = generateCoaddDax("HscCoaddDax", args.tractId, dataDict, blacklist=blacklist, doMosaic=False)
+    dax = generateCoaddDax("HscCoaddDax", args.tractId, dataDict, blacklist=blacklist,blacklistCoaddTempExp=blacklistCoaddTempExp, doMosaic=False)
     with open(args.outputFile, "w") as f:
         dax.writeXML(f)
