@@ -90,7 +90,8 @@ def preruns(dax):
     preProcessCcd = peg.Job(name="processCcd")
     preProcessCcd.uses(mapperFile, link=peg.Link.INPUT)
     preProcessCcd.uses(refCatConfigFile, link=peg.Link.INPUT)
-    preProcessCcd.addArguments(outPath, "--output", outPath, " --doraise")
+    preProcessCcd.addArguments(outPath, "--output", outPath, " --doraise",
+                               "--config isr.doAttachTransmissionCurve=False")
     for schema in ["icSrc_schema", "src_schema"]:
         outFile = getDataFile(mapper, schema, {}, create=True)
         dax.addFile(outFile)
@@ -237,6 +238,7 @@ def generateDax(name="dax"):
 
         processCcd = peg.Job(name="processCcd")
         processCcd.addArguments(outPath, "--calib", outPath, "--output", outPath,
+                                "--config isr.doAttachTransmissionCurve=False",
                                 " --doraise", data.id())
         processCcd.uses(registry, link=peg.Link.INPUT)
         processCcd.uses(calibRegistry, link=peg.Link.INPUT)
@@ -306,12 +308,13 @@ def generateDax(name="dax"):
             makeCoaddTempExp.addArguments(
                 outPath, "--output", outPath, " --doraise",
                 ident, " -c doApplyUberCal=False ",
+                " -c doApplySkyCorr=False",
                 " ".join(data.id("--selectId") for data in allExposures[filterName][visit])
             )
             logger.debug(
                 "Adding makeCoaddTempExp %s %s %s %s %s %s %s",
                 outPath, "--output", outPath, " --doraise",
-                ident, " -c doApplyUberCal=False ",
+                ident, " -c doApplyUberCal=False -c doApplySkyCorr=False",
                 " ".join(data.id("--selectId") for data in allExposures[filterName][visit])
             )
 
