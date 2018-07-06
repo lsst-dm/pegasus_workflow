@@ -139,7 +139,7 @@ def generateSfmDax(name="dax", visits=None, ccdList=None):
 
             logProcessCcd = peg.File("logProcessCcd.v{visit}.c{ccd}".format(**dataId))
             dax.addFile(logProcessCcd)
-            processCcd.setStderr(logProcessCcd)
+            processCcd.setStdout(logProcessCcd)
             processCcd.uses(logProcessCcd, link=peg.Link.OUTPUT)
 
             dax.addJob(processCcd)
@@ -150,7 +150,7 @@ def generateSfmDax(name="dax", visits=None, ccdList=None):
     makeSkyMap.addArguments(outPath, "--output", outPath, " --doraise")
     logMakeSkyMap = peg.File("logMakeSkyMap")
     dax.addFile(logMakeSkyMap)
-    makeSkyMap.setStderr(logMakeSkyMap)
+    makeSkyMap.setStdout(logMakeSkyMap)
     makeSkyMap.uses(logMakeSkyMap, link=peg.Link.OUTPUT)
 
     skyMap = getDataFile(mapper, "deepCoadd_skyMap", {}, create=True)

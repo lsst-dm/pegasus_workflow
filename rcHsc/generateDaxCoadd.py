@@ -202,7 +202,7 @@ def generateCoaddDax(name="dax", tractDataId=0, dataDict=None, blacklist=None, d
 
             logMosaic = peg.File("logMosaic.%d-%s" % (tractDataId, filterName))
             dax.addFile(logMosaic)
-            mosaic.setStderr(logMosaic)
+            mosaic.setStdout(logMosaic)
             mosaic.setStdout(logMosaic)
             mosaic.uses(logMosaic, link=peg.Link.OUTPUT)
             dax.addJob(mosaic)
@@ -256,7 +256,7 @@ def generateCoaddDax(name="dax", tractDataId=0, dataDict=None, blacklist=None, d
                 logMakeCoaddTempExp = peg.File(
                     "logMakeCoaddTempExp.%(tract)d-%(patch)s-%(filter)s-%(visit)d" % coaddTempExpId)
                 dax.addFile(logMakeCoaddTempExp)
-                makeCoaddTempExp.setStderr(logMakeCoaddTempExp)
+                makeCoaddTempExp.setStdout(logMakeCoaddTempExp)
                 makeCoaddTempExp.uses(logMakeCoaddTempExp, link=peg.Link.OUTPUT)
 
                 deepCoadd_directWarp = getDataFile(mapper, "deepCoadd_directWarp", coaddTempExpId, create=True)
@@ -308,7 +308,7 @@ def generateCoaddDax(name="dax", tractDataId=0, dataDict=None, blacklist=None, d
 
             logAssembleCoadd = peg.File("logAssembleCoadd.%(tract)d-%(patch)s-%(filter)s" % coaddId)
             dax.addFile(logAssembleCoadd)
-            assembleCoadd.setStderr(logAssembleCoadd)
+            assembleCoadd.setStdout(logAssembleCoadd)
             assembleCoadd.uses(logAssembleCoadd, link=peg.Link.OUTPUT)
 
             coadd = getDataFile(mapper, "deepCoadd", coaddId, create=True)
@@ -325,7 +325,7 @@ def generateCoaddDax(name="dax", tractDataId=0, dataDict=None, blacklist=None, d
             logDetectCoaddSources = peg.File(
                 "logDetectCoaddSources.%(tract)d-%(patch)s-%(filter)s" % coaddId)
             dax.addFile(logDetectCoaddSources)
-            detectCoaddSources.setStderr(logDetectCoaddSources)
+            detectCoaddSources.setStdout(logDetectCoaddSources)
             detectCoaddSources.uses(logDetectCoaddSources, link=peg.Link.OUTPUT)
 
             inFile = getDataFile(mapper, "deepCoadd_det_schema", {}, create=False)
@@ -360,7 +360,7 @@ def generateCoaddDax(name="dax", tractDataId=0, dataDict=None, blacklist=None, d
 
         logMergeCoaddDetections = peg.File("logMergeCoaddDetections.%(tract)d-%(patch)s" % tractPatchDataId)
         dax.addFile(logMergeCoaddDetections)
-        mergeCoaddDetections.setStderr(logMergeCoaddDetections)
+        mergeCoaddDetections.setStdout(logMergeCoaddDetections)
         mergeCoaddDetections.uses(logMergeCoaddDetections, link=peg.Link.OUTPUT)
 
         for inputType in ["deepCoadd_mergeDet_schema", "deepCoadd_peak_schema"]:
@@ -419,7 +419,7 @@ def generateCoaddDax(name="dax", tractDataId=0, dataDict=None, blacklist=None, d
             logMeasureCoaddSources = peg.File(
                 "logMeasureCoaddSources.%(tract)d-%(patch)s-%(filter)s" % coaddId)
             dax.addFile(logMeasureCoaddSources)
-            measureCoaddSources.setStderr(logMeasureCoaddSources)
+            measureCoaddSources.setStdout(logMeasureCoaddSources)
             measureCoaddSources.uses(logMeasureCoaddSources, link=peg.Link.OUTPUT)
 
             inFile = getDataFile(mapper, "deepCoadd_meas_schema", {}, create=False)
@@ -452,7 +452,7 @@ def generateCoaddDax(name="dax", tractDataId=0, dataDict=None, blacklist=None, d
         logMergeCoaddMeasurements = peg.File(
             "logMergeCoaddMeasurements.%(tract)d-%(patch)s" % tractPatchDataId)
         dax.addFile(logMergeCoaddMeasurements)
-        mergeCoaddMeasurements.setStderr(logMergeCoaddMeasurements)
+        mergeCoaddMeasurements.setStdout(logMergeCoaddMeasurements)
         mergeCoaddMeasurements.uses(logMergeCoaddMeasurements, link=peg.Link.OUTPUT)
 
         outFile = getDataFile(mapper, "deepCoadd_ref", tractPatchDataId, create=True)
@@ -485,7 +485,7 @@ def generateCoaddDax(name="dax", tractDataId=0, dataDict=None, blacklist=None, d
 
             logForcedPhotCoadd = peg.File("logForcedPhotCoadd.%(tract)d-%(patch)s-%(filter)s" % coaddId)
             dax.addFile(logForcedPhotCoadd)
-            forcedPhotCoadd.setStderr(logForcedPhotCoadd)
+            forcedPhotCoadd.setStdout(logForcedPhotCoadd)
             forcedPhotCoadd.uses(logForcedPhotCoadd, link=peg.Link.OUTPUT)
 
             inFile = getDataFile(mapper, "deepCoadd_forced_src_schema", {}, create=False)
