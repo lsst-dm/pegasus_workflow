@@ -136,6 +136,12 @@ def generateDax(name="dax"):
                 dax.addFile(inFile)
                 visitAnalysis.uses(inFile, link=peg.Link.INPUT)
 
+        # Need skymap via PerTractCcdDataIdContainer
+        skyMap = getDataFile(mapper, "deepCoadd_skyMap", {},
+                             create=True, repoRoot=inputRepo)
+        if not dax.hasFile(skyMap):
+            dax.addFile(skyMap)
+        visitAnalysis.uses(skyMap, link=peg.Link.INPUT)
 
         # Output "plot-vN-[matches_]schemaItem[_subset]_plotType.png"
         # yet to be added
