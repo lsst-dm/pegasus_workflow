@@ -107,3 +107,12 @@ tr forcedPhotCcd {
         type "INSTALLED"
     }
 }
+
+tr visitAnalysis {
+    site lsstvc {
+        pfn "${PIPE_ANALYSIS_DIR}/bin/visitAnalysis.py"
+        arch "x86_64"
+        os "linux"
+        type "INSTALLED"
+    }
+}
