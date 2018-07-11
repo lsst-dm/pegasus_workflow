@@ -54,6 +54,7 @@ def getDataFile(mapper, datasetType, dataId, create=False, repoRoot=None):
     -------
     fileEntry:
         A Pegasus File entry or a LFN corresponding to an entry
+        or None if such file does not exist
     """
     mapFunc = getattr(mapper, "map_" + datasetType)
     butlerPath = mapFunc(dataId).getLocations()[0]
@@ -63,9 +64,12 @@ def getDataFile(mapper, datasetType, dataId, create=False, repoRoot=None):
         fileEntry = peg.File(lfn)
         if repoRoot is not None:
             filePath = os.path.join(repoRoot, butlerPath)
+            if not os.path.isfile(filePath):
+                logger.info("Skip %s %s; there is no %s ", datasetType, dataId, filePath)
+                return None
             fileEntry.addPFN(peg.PFN(filePath, site="local"))
             fileEntry.addPFN(peg.PFN(filePath, site="lsstvc"))
-            logger.info("%s %s: %s -> %s", datasetType, dataId, filePath, lfn)
+            logger.debug("%s %s: %s -> %s", datasetType, dataId, filePath, lfn)
 
     return fileEntry
 
@@ -124,11 +128,13 @@ def generateDax(name="dax"):
                     dax.addFile(inFile)
                 visitAnalysis.uses(inFile, link=peg.Link.INPUT)
 
+            # jointcal_wcs does not exist for all CCDs
             inFile = getDataFile(mapper, "jointcal_wcs",
                                  dict(tract=data['tract'], visit=data['visit'], ccd=ccdId),
                                  create=True, repoRoot=inputRepo)
-            dax.addFile(inFile)
-            visitAnalysis.uses(inFile, link=peg.Link.INPUT)
+            if inFile is not None:
+                dax.addFile(inFile)
+                visitAnalysis.uses(inFile, link=peg.Link.INPUT)
 
 
         # Output "plot-vN-[matches_]schemaItem[_subset]_plotType.png"
