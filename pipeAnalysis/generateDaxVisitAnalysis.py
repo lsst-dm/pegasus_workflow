@@ -128,13 +128,17 @@ def generateDax(name="dax"):
                     dax.addFile(inFile)
                 visitAnalysis.uses(inFile, link=peg.Link.INPUT)
 
-            # jointcal_wcs does not exist for all CCDs
-            inFile = getDataFile(mapper, "jointcal_wcs",
-                                 dict(tract=data['tract'], visit=data['visit'], ccd=ccdId),
-                                 create=True, repoRoot=inputRepo)
-            if inFile is not None:
-                dax.addFile(inFile)
-                visitAnalysis.uses(inFile, link=peg.Link.INPUT)
+            # Require meas_mosiac products while config.doApplyUberCal=True
+            # tract ID is needed to retrieve those products
+            # meas_mosaic products do not exist for all CCDs
+            for inputType in ["jointcal_wcs", "fcr"]:
+                inFile = getDataFile(mapper, inputType,
+                    dict(tract=data['tract'], visit=data['visit'], ccd=ccdId),
+                    create=True, repoRoot=inputRepo)
+
+                if inFile is not None:
+                    dax.addFile(inFile)
+                    visitAnalysis.uses(inFile, link=peg.Link.INPUT)
 
         # Need skymap via PerTractCcdDataIdContainer
         skyMap = getDataFile(mapper, "deepCoadd_skyMap", {},
