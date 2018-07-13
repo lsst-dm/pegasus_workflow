@@ -5,7 +5,10 @@ import Pegasus.DAX3 as peg
 
 import lsst.log
 import lsst.utils
+from lsst.daf.persistence import Butler
 from lsst.obs.hsc.hscMapper import HscMapper
+
+from findShardId import findShardIdFromPatch
 
 logger = lsst.log.Log.getLogger("workflow")
 logger.setLevel(lsst.log.DEBUG)
@@ -99,6 +102,17 @@ def generateDax(name="dax"):
     registry.addPFN(peg.PFN(filePathRegistry, site="lsstvc"))
     dax.addFile(registry)
 
+    # Add ref_cats necessities
+    refCatConfigFile = getDataFile(mapper, "ref_cat_config", {"name": refcatName}, create=True, repoRoot=rootRepo)
+    dax.addFile(refCatConfigFile)
+
+    refCatSchema = "ref_cats/ps1_pv3_3pi_20170110/master_schema.fits"
+    filePath = os.path.join(rootRepo, refCatSchema)
+    refCatSchemaFile = peg.File(os.path.join(outPath, refCatSchema))
+    refCatSchemaFile.addPFN(peg.PFN(filePath, site="local"))
+    refCatSchemaFile.addPFN(peg.PFN(filePath, site="lsstvc"))
+    dax.addFile(refCatSchemaFile)
+
     # Pipeline: visitAnalysis for each visit
     for data in allData:
         logger.debug("visitAnalysis dataId: %s", data)
@@ -110,6 +124,9 @@ def generateDax(name="dax"):
                                    "--id visit=%s" % data['visit'])
         visitAnalysis.uses(registry, link=peg.Link.INPUT)
         visitAnalysis.uses(mapperFile, link=peg.Link.INPUT)
+        visitAnalysis.uses(refCatConfigFile, link=peg.Link.INPUT)
+        visitAnalysis.uses(refCatSchemaFile, link=peg.Link.INPUT)
+
         for inputType in ["src_schema"]:
             inFile = getDataFile(mapper, inputType, {}, create=True, repoRoot=inputRepo)
             if not dax.hasFile(inFile):
@@ -141,11 +158,25 @@ def generateDax(name="dax"):
                     visitAnalysis.uses(inFile, link=peg.Link.INPUT)
 
         # Need skymap via PerTractCcdDataIdContainer
-        skyMap = getDataFile(mapper, "deepCoadd_skyMap", {},
-                             create=True, repoRoot=inputRepo)
-        if not dax.hasFile(skyMap):
-            dax.addFile(skyMap)
-        visitAnalysis.uses(skyMap, link=peg.Link.INPUT)
+        skyMapFile = getDataFile(mapper, "deepCoadd_skyMap", {},
+                                 create=True, repoRoot=inputRepo)
+        if not dax.hasFile(skyMapFile):
+            dax.addFile(skyMapFile)
+        visitAnalysis.uses(skyMapFile, link=peg.Link.INPUT)
+
+        butler = Butler(root=inputRepo, calibRoot=calibRepo)
+        skymap = butler.get("deepCoadd_skyMap")
+        refs = set()
+        for patch in skymap[data['tract']]:
+            tractPatchDataId = dict(tract=data['tract'], patch="%d,%d" % patch.getIndex())
+            shards = findShardIdFromPatch(butler, tractPatchDataId)
+            for shard in shards:
+                refCatFile = getDataFile(mapper, "ref_cat", {"name": refcatName, "pixel_id": shard}, create=True, repoRoot=rootRepo)
+                if not dax.hasFile(refCatFile):
+                    dax.addFile(refCatFile)
+                if refCatFile not in refs:
+                    visitAnalysis.uses(refCatFile, link=peg.Link.INPUT)
+                    refs.add(refCatFile)
 
         # Output "plot-vN-[matches_]schemaItem[_subset]_plotType.png"
         # yet to be added
