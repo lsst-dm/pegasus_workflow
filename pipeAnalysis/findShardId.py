@@ -40,12 +40,10 @@ def findShardIdFromExpId(butler, expId, expType="raw", ref_dataset_name="ps1_pv3
 
     # Copied from LoadReferenceObjectsTask.loadPixelBox
     # compute on-sky center and radius of search region
-    bbox = afwGeom.Box2D(expMd.bbox) # make sure bbox is double and that we have a copy
-    bbox.grow(config.pixelMargin)
-    ctrCoord = expMd.wcs.pixelToSky(bbox.getCenter())
-    maxRadius = max(ctrCoord.angularSeparation(expMd.wcs.pixelToSky(pp)) for pp in bbox.getCorners())
+    circle = loader._calculateCircle(expMd.bbox, expMd.wcs)
+
     # Copied from LoadIndexedReferenceObjectsTask.loadSkyCircle and get_shards
-    id_list, boundary_mask = loader.indexer.get_pixel_ids(ctrCoord, maxRadius)
+    id_list, boundary_mask = loader.indexer.get_pixel_ids(circle.coord, circle.radius)
     # loader.get_shards(id_list)
     shardPixels = []
     for pixel_id in id_list:
@@ -86,12 +84,12 @@ def findShardIdFromPatch(butler, dataId, ref_dataset_name="ps1_pv3_3pi_20170110"
     skymap = butler.get("deepCoadd_skyMap", {})
     tractInfo = skymap[dataId['tract']]
     wcs = tractInfo.getWcs()
-    patchIndex = map(int, dataId['patch'].split(','))
+    patchIndex = [int(patch) for patch in dataId['patch'].split(',')]
     pBox = afwGeom.Box2D(tractInfo.getPatchInfo(patchIndex).getOuterBBox())
     coordList = [wcs.pixelToSky(corner) for corner in pBox.getCorners()]
     # Copied from DirectMatchTask.calculateCircle which instead takes a catalog
-    center = afwCoord.averageCoord(coordList)
-    radius = max(center.angularSeparation(coord) for coord in coordList)
+    center = afwGeom.averageSpherePoint(coordList)
+    radius = max(center.separation(coord) for coord in coordList)
     # meas/astrom/directMatch.py DirectMatchConfig.matchRadius : assume no override
     directMatchTask = DirectMatchTask(refObjLoader=loader)
     maxRadius = radius + directMatchTask.config.matchRadius * afwGeom.arcseconds
