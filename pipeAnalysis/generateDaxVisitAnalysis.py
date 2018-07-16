@@ -141,6 +141,8 @@ def generateDax(name="dax"):
                 inFile = getDataFile(mapper, inputType, 
                                      dict(visit=data['visit'], ccd=ccdId),
                                      create=True, repoRoot=inputRepo)
+                if inFile is None:
+                    continue
                 if not dax.hasFile(inFile):
                     dax.addFile(inFile)
                 visitAnalysis.uses(inFile, link=peg.Link.INPUT)
