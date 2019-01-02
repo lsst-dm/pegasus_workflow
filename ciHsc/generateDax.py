@@ -255,6 +255,13 @@ def generateDax(name="dax"):
         inFile = getDataFile(mapper, "raw", data.dataId, create=True, repoRoot=inputRepo)
         dax.addFile(inFile)
         processCcd.uses(inFile, link=peg.Link.INPUT)
+        for inputType in ["transmission_optics", "transmission_sensor", "transmission_atmosphere"]: # "transmission_filter"  bug?
+            inFile = getDataFile(mapper, inputType, data.dataId,
+                                 create=True, repoRoot=inputRepo)
+            if not dax.hasFile(inFile):
+                dax.addFile(inFile)
+            processCcd.uses(inFile, link=peg.Link.INPUT)
+
         for inputType in ["bias", "dark", "flat", "bfKernel"]:
             inFile = getDataFile(mapper, inputType, data.dataId,
                                  create=True, repoRoot=calibRepo)
