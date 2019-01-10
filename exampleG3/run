@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# First, run "python genDax.py" to generate the dax file
+DAXFILE=$1
+
+export RUN_ID=wf-`date +'%s'`
+export RUN_DIR=$PWD/submit/$RUN_ID
+mkdir -p $RUN_DIR
+
+echo 
+echo "Output directory is $RUN_DIR/outputs"
+echo
+
+    
+# plan and submit the workflow
+pegasus-plan \
+    -Dpegasus.catalog.site.file=sites.xml \
+    -Dpegasus.data.configuration=sharedfs \
+    --sites lsstvc \
+    --relative-dir $RUN_ID \
+    --dir $RUN_DIR/pegasus-dir \
+    --output-site local \
+    --dax $DAXFILE \
+    --submit
