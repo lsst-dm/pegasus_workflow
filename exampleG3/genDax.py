@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# beyond lsst_distrib, setup pipe_supertask
+# beyond lsst_distrib, setup ctrl_mpexec
 
 
 import os
@@ -14,11 +14,11 @@ import lsst.utils
 dax = peg.ADAG("example")
 
 # Add executables
-stactask = peg.Executable(name="stac", arch="x86_64", installed=False)
-psDir = lsst.utils.getPackageDir('pipe_supertask')
-stactask.addPFN(peg.PFN("file://" + psDir + "/bin/stac", "local"))
-stactask.addPFN(peg.PFN("file://" + psDir + "/bin/stac", "lsstvc"))
-dax.addExecutable(stactask)
+pipetask = peg.Executable(name="pipetask", arch="x86_64", installed=False)
+cmDir = lsst.utils.getPackageDir('ctrl_mpexec')
+pipetask.addPFN(peg.PFN("file://" + cmDir + "/bin/pipetask", "local"))
+pipetask.addPFN(peg.PFN("file://" + cmDir + "/bin/pipetask", "lsstvc"))
+dax.addExecutable(pipetask)
 
 
 repoPath = "/scratch/hchiang2/sw/ci_hsc/DATA"
@@ -27,7 +27,7 @@ for visit in range(1, 5):
     #inputRaw = peg.File("file.raw.visit%d" % visit)
     #inputRaw.addPFN(peg.PFN(filePath, site="local"))
     #dax.addFile(inputRaw)
-    exampleCmdLineTask = peg.Job(name="stac")
+    exampleCmdLineTask = peg.Job(name="pipetask")
     exampleCmdLineTask.addArguments("-b", repoPath, "-i", "raw",
                                     "-o", outCollection, "run", "-t", "RawToCalexpTask")
     #exampleCmdLineTask.uses(inputRaw, link=peg.Link.INPUT)
