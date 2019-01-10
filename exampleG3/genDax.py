@@ -29,7 +29,8 @@ for visit in range(1, 5):
     #dax.addFile(inputRaw)
     exampleCmdLineTask = peg.Job(name="pipetask")
     exampleCmdLineTask.addArguments("-b", repoPath, "-i", "raw",
-                                    "-o", outCollection, "run", "-t", "RawToCalexpTask")
+                                    "-o", outCollection, "run",
+                                    "-t", "rawToCalexpTask.RawToCalexpTask")
     #exampleCmdLineTask.uses(inputRaw, link=peg.Link.INPUT)
 
     result = peg.File("exampleOutput.visit%d" % visit)
