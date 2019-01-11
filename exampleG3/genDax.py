@@ -26,19 +26,22 @@ repoPath = "/scratch/hchiang2/sw/ci_hsc/DATA"
 conn = sqlite3.connect(os.path.join(repoPath, "gen3.sqlite3"))
 c = conn.cursor()
 inputType = "raw"
-visits = 'select distinct visit from Dataset inner join PosixDatastoreRecords on Dataset.dataset_id = PosixDatastoreRecords.dataset_id where  dataset_type_name = "%s";' % inputType;
+query = 'select visit,GROUP_CONCAT(PosixDatastoreRecords.path) from Dataset inner join PosixDatastoreRecords on Dataset.dataset_id = PosixDatastoreRecords.dataset_id where  dataset_type_name ="%s" group by visit;' % inputType;
 
-for v in c.execute(visits):
-    visit = v[0]
-    outCollection = "outs/out2"
-    #inputRaw = peg.File("file.raw.visit%d" % visit)
-    #inputRaw.addPFN(peg.PFN(filePath, site="local"))
-    #dax.addFile(inputRaw)
+outCollection = "outs/out2"
+for _ in c.execute(query):
+    visit = _[0]
+    paths = _[1]
     exampleCmdLineTask = peg.Job(name="pipetask")
     exampleCmdLineTask.addArguments("-b", repoPath, "-i", inputType, "-o", outCollection,
                                     "-d", "Visit.visit=%d" % visit, "run",
                                     "-t", "rawToCalexpTask.RawToCalexpTask")
-    #exampleCmdLineTask.uses(inputRaw, link=peg.Link.INPUT)
+    for path in paths.split(','):
+        fullPath = os.path.join(repoPath, path)
+        inputRaw = peg.File(os.path.basename(path))
+        inputRaw.addPFN(peg.PFN(fullPath, site="local"))
+        dax.addFile(inputRaw)
+        exampleCmdLineTask.uses(inputRaw, link=peg.Link.INPUT)
 
     result = peg.File("exampleOutput.visit%d" % visit)
     #result = peg.File("exampleOutput")
