@@ -26,7 +26,7 @@
         <!-- set if the compute site filesystem is accessible locally on the submit host -->
         <profile namespace="pegasus" key="auxillary.local">true</profile>
         <profile namespace="condor" key="getEnv">True</profile>
-        <profile namespace="env" key="PEGASUS_HOME" >/software/middleware/pegasus/current</profile>
+        <profile namespace="env" key="PEGASUS_HOME" >/project/production/pegasus/4.9.0</profile>
         <profile namespace="condor" key="requirements">(ALLOCATED_NODE_SET == &quot;${NODESET}&quot;)</profile>
         <profile namespace="condor" key="+JOB_NODE_SET">&quot;${NODESET}&quot;</profile>
         <profile namespace="env" key="EUPS_USERDATA" >/scratch/${USER}/eupsUserData</profile>

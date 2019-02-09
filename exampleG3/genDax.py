@@ -11,8 +11,12 @@ import lsst.daf.persistence as dafPersist
 import lsst.log
 import lsst.utils
 
-
-dax = peg.ADAG("example")
+try:
+    from AutoADAG import AutoADAG
+except ImportError:
+    dax = peg.ADAG(name)
+else:
+    dax = AutoADAG(name)
 
 # Add executables
 pipetask = peg.Executable(name="pipetask", arch="x86_64", installed=False)
