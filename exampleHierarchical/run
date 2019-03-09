@@ -1,0 +1,24 @@
+#!/bin/bash
+
+export RUN_ID=wf-`date +'%s'`
+export RUN_DIR=$PWD/submit/$RUN_ID
+mkdir -p $RUN_DIR
+
+echo
+echo "Output directory is $RUN_DIR/outputs"
+echo
+
+INPUT_FILE_PATH=$PWD/input
+# generate the level-1 dax
+./generateDax1.py $RUN_DIR $INPUT_FILE_PATH
+
+# plan and submit the workflow
+pegasus-plan \
+    -Dpegasus.catalog.site.file=sites.xml \
+    -Dpegasus.data.configuration=condorio \
+    --sites condorpool \
+    --relative-dir $RUN_ID \
+    --dir $RUN_DIR/workflow \
+    --output-site local \
+    --dax dax1.xml \
+    --submit
